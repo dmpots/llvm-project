@@ -1104,16 +1104,22 @@ public:
     auto *SrcVTy = dyn_cast<VectorType>(Src);
     auto *DstVTy = dyn_cast<VectorType>(Dst);
 
+    // The SINT_TO_FP and UINT_TO_FP operations check the legality
+    // based on the src type, not dst type (see SelectionDAGLegalize::LegalizeOp).
+    const bool useSrcType =
+        Opcode == Instruction::SIToFP || Opcode == Instruction::UIToFP;
+    MVT TLIOperationType = useSrcType ? SrcLT.second : DstLT.second;
+
     // If the cast is marked as legal (or promote) then assume low cost.
     if (SrcLT.first == DstLT.first &&
-        TLI->isOperationLegalOrPromote(ISD, DstLT.second))
+        TLI->isOperationLegalOrPromote(ISD, TLIOperationType))
       return SrcLT.first;
 
     // Handle scalar conversions.
     if (!SrcVTy && !DstVTy) {
       // Just check the op cost. If the operation is legal then assume it costs
       // 1.
-      if (!TLI->isOperationExpand(ISD, DstLT.second))
+      if (!TLI->isOperationExpand(ISD, TLIOperationType))
         return 1;
 
       // Assume that illegal scalar instruction are expensive.
@@ -1136,7 +1142,7 @@ public:
         // Just check the op cost. If the operation is legal then assume it
         // costs
         // 1 and multiply by the type-legalization overhead.
-        if (!TLI->isOperationExpand(ISD, DstLT.second))
+        if (!TLI->isOperationExpand(ISD, TLIOperationType))
           return SrcLT.first * 1;
       }
 
