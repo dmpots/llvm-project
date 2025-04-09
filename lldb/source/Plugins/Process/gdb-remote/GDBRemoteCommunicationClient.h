@@ -435,6 +435,8 @@ public:
 
   StructuredData::ObjectSP GetThreadsInfo();
 
+  StructuredData::ObjectSP GetGPUPluginInfo();
+
   bool GetThreadExtendedInfoSupported();
 
   bool GetLoadedDynamicLibrariesInfosSupported();
@@ -584,7 +586,7 @@ protected:
   LazyBool m_supports_reverse_continue = eLazyBoolCalculate;
   LazyBool m_supports_reverse_step = eLazyBoolCalculate;
   LazyBool m_supports_multi_mem_read = eLazyBoolCalculate;
-
+  LazyBool m_supports_gpu_plugins = eLazyBoolCalculate;
   bool m_supports_qProcessInfoPID : 1, m_supports_qfProcessInfo : 1,
       m_supports_qUserName : 1, m_supports_qGroupName : 1,
       m_supports_qThreadStopInfo : 1, m_supports_z0 : 1, m_supports_z1 : 1,
