@@ -297,6 +297,8 @@ protected:
   PacketResult Handle_T(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_jGPUPluginInitialize(StringExtractorGDBRemote &packet);
+  
+  PacketResult Handle_jGPUPluginBreakpointHit(StringExtractorGDBRemote &packet);
 
   void SetCurrentThreadID(lldb::tid_t tid);
 
