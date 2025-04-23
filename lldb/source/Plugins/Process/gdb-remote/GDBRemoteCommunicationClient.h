@@ -436,7 +436,7 @@ public:
 
   StructuredData::ObjectSP GetThreadsInfo();
 
-  std::optional<std::vector<GPUPluginInfo>> GetGPUPluginInfos();
+  std::optional<std::vector<GPUActions>> GetGPUInitializeActions();
 
   std::optional<GPUPluginBreakpointHitResponse> 
   GPUBreakpointHit(const GPUPluginBreakpointHitArgs &args);
