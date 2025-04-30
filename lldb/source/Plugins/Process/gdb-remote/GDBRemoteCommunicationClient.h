@@ -441,6 +441,9 @@ public:
   std::optional<GPUPluginBreakpointHitResponse> 
   GPUBreakpointHit(const GPUPluginBreakpointHitArgs &args);
 
+  std::optional<GPUDynamicLoaderResponse> 
+  GetGPUDynamicLoaderLibraryInfos(const GPUDynamicLoaderArgs &args);
+
   bool GetThreadExtendedInfoSupported();
 
   bool GetLoadedDynamicLibrariesInfosSupported();
