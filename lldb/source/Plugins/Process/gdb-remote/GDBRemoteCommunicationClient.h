@@ -549,7 +549,7 @@ public:
   void SetFilePassingFD(int fd);
 
   bool SupportsGPUDynamicLoader() const {
-    return m_supports_jGPUPluginGetDynamicLoaderLibraryInfo == eLazyBoolYes;
+    return m_supports_gdb_remote_gpu_dyld == eLazyBoolYes;
   }
   
 protected:
@@ -592,7 +592,7 @@ protected:
   LazyBool m_supports_multiprocess = eLazyBoolCalculate;
   LazyBool m_supports_memory_tagging = eLazyBoolCalculate;
   LazyBool m_supports_qSaveCore = eLazyBoolCalculate;
-  LazyBool m_supports_jGPUPluginGetDynamicLoaderLibraryInfo = eLazyBoolCalculate;
+  LazyBool m_supports_gdb_remote_gpu_dyld = eLazyBoolCalculate;
   LazyBool m_uses_native_signals = eLazyBoolCalculate;
   std::optional<xPacketState> m_x_packet_state;
   LazyBool m_supports_reverse_continue = eLazyBoolCalculate;
