@@ -4376,8 +4376,7 @@ std::vector<std::string> GDBRemoteCommunicationServerLLGS::HandleFeatures(
                             "QThreadSuffixSupported+",
                             "QListThreadsInStopReply+",
                             "qXfer:features:read+",
-                            "QNonStop+",
-                            "gpu-plugins"
+                            "QNonStop+"
                         });
 
   // report server-only features
@@ -4395,6 +4394,8 @@ std::vector<std::string> GDBRemoteCommunicationServerLLGS::HandleFeatures(
     ret.push_back("memory-tagging+");
   if (bool(plugin_features & Extension::savecore))
     ret.push_back("qSaveCore+");
+  if (bool(plugin_features & Extension::gpu_plugins))
+    ret.push_back("gpu-plugins+");
   if (bool(plugin_features & Extension::json_dynamic_loader))
     ret.push_back("jGPUPluginGetDynamicLoaderLibraryInfo+");
 
