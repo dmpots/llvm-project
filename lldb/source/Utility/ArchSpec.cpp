@@ -420,7 +420,7 @@ static const ArchDefinitionEntry g_elf_arch_entries[] = {
     {ArchSpec::eCore_riscv64,         llvm::ELF::EM_RISCV,      ArchSpec::eRISCVSubType_riscv64}, // riscv64
     {ArchSpec::eCore_loongarch32,     llvm::ELF::EM_LOONGARCH,  ArchSpec::eLoongArchSubType_loongarch32}, // loongarch32
     {ArchSpec::eCore_loongarch64,     llvm::ELF::EM_LOONGARCH,  ArchSpec::eLoongArchSubType_loongarch64}, // loongarch64
-    {ArchSpec::eCore_amd_gpu_r600,    llvm::ELF::EM_AMDGPU      }, // AMD GPU
+    // {ArchSpec::eCore_amd_gpu_r600,    llvm::ELF::EM_AMDGPU      }, // AMD GPU
     {ArchSpec::eCore_amd_gpu_gcn,     llvm::ELF::EM_AMDGPU      }, // AMD GPU
     {ArchSpec::eCore_nvidia_nvptx,    llvm::ELF::EM_CUDA        }, // NVidia GPU
     {ArchSpec::eCore_nvidia_nvptx64,  llvm::ELF::EM_CUDA        },
