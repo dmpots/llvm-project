@@ -2291,7 +2291,7 @@ ModuleSP Target::GetOrCreateModule(const ModuleSpec &module_spec, bool notify,
 }
 
 ModuleSP Target::GetOrCreateModule(
-    const ModuleSpec &module_spec, bool notify,
+    const ModuleSpec &orig_module_spec, bool notify,
     llvm::function_ref<void(std::function<void()>)> scheduleSymbolsPreload,
     Status *error_ptr) {
   ModuleSP module_sp;

@@ -1,9 +1,12 @@
 C_SOURCES := main.c
-LD_EXTRAS := -L. -la -lb -lc -ld -le
+include Makefile.rules
+
+# Use full path to shared libraries to make test effective on linux.
+LD_EXTRAS := $(BUILDDIR)/liba.so $(BUILDDIR)/libb.so $(BUILDDIR)/libc.so $(BUILDDIR)/libd.so $(BUILDDIR)/libe.so
 
 a.out: liba libb libc libd libe
 
-include Makefile.rules
+
 
 liba:
 	"$(MAKE)" -f $(MAKEFILE_RULES) \
