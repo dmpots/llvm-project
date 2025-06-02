@@ -104,6 +104,7 @@ function(llvm_create_cross_target project_name target_name toolchain buildtype)
         -DLLVM_INCLUDE_TESTS=OFF
         -DLLVM_TABLEGEN_FLAGS="${llvm_tablegen_flags}"
         -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}"
+        -DROCM_PATH=${ROCM_PATH}
         ${build_type_flags} ${linker_flag} ${external_clang_dir} ${libc_flags}
         ${ARGN}
     WORKING_DIRECTORY ${${project_name}_${target_name}_BUILD}
