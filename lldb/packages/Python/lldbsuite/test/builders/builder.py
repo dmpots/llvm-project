@@ -241,6 +241,12 @@ class Builder:
             return libcpp_args
         return []
 
+    def getRocmArgs(self):
+        if configuration.rocm_path:
+            hipcc = configuration.rocm_path + "/bin/hipcc"
+            return ["HIPCC={}".format(hipcc)]
+        return []
+
     def getLLDBObjRoot(self):
         return ["LLDB_OBJ_ROOT={}".format(configuration.lldb_obj_root)]
 
@@ -281,6 +287,7 @@ class Builder:
             self.getSDKRootSpec(),
             self.getModuleCacheSpec(),
             self.getLibCxxArgs(),
+            self.getRocmArgs(),
             self.getLLDBObjRoot(),
             self.getCmdLine(dictionary),
         ]

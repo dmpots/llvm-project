@@ -49,6 +49,11 @@ lldb_build_intel_pt = '@LLDB_BUILD_INTEL_PT@'
 if lldb_build_intel_pt == '1':
     config.enabled_plugins.append('intel-pt')
 
+# GPU Plugins
+config.rocm_path = '@ROCM_PATH@'
+if config.rocm_path:
+    config.available_features.add('lldb-amdgpu')
+
 # Additional dotest arguments can be passed to lit by providing a
 # semicolon-separates list: --param dotest-args="arg;arg".
 dotest_lit_args_str = lit_config.params.get('dotest-args', None)
