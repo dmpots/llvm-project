@@ -266,6 +266,14 @@ def parseOptionsAndInitTestdirs():
                     configuration.compiler = candidate
                     break
 
+    if args.rocm_path:
+        configuration.rocm_path = os.path.abspath(args.rocm_path)
+        if not os.path.exists(configuration.rocm_path):
+            logging.error(
+                '"%s" is not a valid rocm path; aborting...', args.rocm_path
+            )
+            sys.exit(-1)
+
     if args.make:
         configuration.make_path = args.make
 

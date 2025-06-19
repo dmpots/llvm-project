@@ -491,6 +491,13 @@ ifneq "$(strip $(OBJCXX_SOURCES))" ""
 	endif
 endif
 
+#----------------------------------------------------------------------
+# Check if we have any hip source files
+#----------------------------------------------------------------------
+ifneq "$(strip $(HIP_SOURCES))" ""
+	OBJECTS +=$(strip $(HIP_SOURCES:.hip=.o))
+endif
+
 ifeq ($(CC_TYPE), clang)
 	CXXFLAGS += --driver-mode=g++
 endif
@@ -627,6 +634,9 @@ endif
 
 %.o: %.mm %.d
 	$(CXX) $(CXXFLAGS) -MT $@ -MD -MP -MF $*.d -c -o $@ $<
+
+%.o: %.hip %.d
+	$(HCC) $(HXXFLAGS) -MT $@ -MD -MP -MF $*.d -c -o $@ $<
 
 #----------------------------------------------------------------------
 # Automatic variables based on items already entered. Below we create
