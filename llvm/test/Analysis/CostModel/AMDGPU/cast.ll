@@ -248,9 +248,9 @@ define void @sitofp4(<4 x i1> %a, <4 x i8> %b, <4 x i16> %c, <4 x i32> %d) {
 ; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %A2 = sitofp <4 x i1> %a to <4 x double>
 ; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %B1 = sitofp <4 x i8> %b to <4 x float>
 ; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %B2 = sitofp <4 x i8> %b to <4 x double>
-; FAST-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %C1 = sitofp <4 x i16> %c to <4 x float>
+; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C1 = sitofp <4 x i16> %c to <4 x float>
 ; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C2 = sitofp <4 x i16> %c to <4 x double>
-; FAST-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %D1 = sitofp <4 x i32> %d to <4 x float>
+; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D1 = sitofp <4 x i32> %d to <4 x float>
 ; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D2 = sitofp <4 x i32> %d to <4 x double>
 ; FAST-NEXT:  Cost Model: Found an estimated cost of 10 for instruction: ret void
 ;
@@ -261,7 +261,7 @@ define void @sitofp4(<4 x i1> %a, <4 x i8> %b, <4 x i16> %c, <4 x i32> %d) {
 ; SLOW-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %B2 = sitofp <4 x i8> %b to <4 x double>
 ; SLOW-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C1 = sitofp <4 x i16> %c to <4 x float>
 ; SLOW-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C2 = sitofp <4 x i16> %c to <4 x double>
-; SLOW-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %D1 = sitofp <4 x i32> %d to <4 x float>
+; SLOW-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D1 = sitofp <4 x i32> %d to <4 x float>
 ; SLOW-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D2 = sitofp <4 x i32> %d to <4 x double>
 ; SLOW-NEXT:  Cost Model: Found an estimated cost of 10 for instruction: ret void
 ;
@@ -270,9 +270,9 @@ define void @sitofp4(<4 x i1> %a, <4 x i8> %b, <4 x i16> %c, <4 x i32> %d) {
 ; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %A2 = sitofp <4 x i1> %a to <4 x double>
 ; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %B1 = sitofp <4 x i8> %b to <4 x float>
 ; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %B2 = sitofp <4 x i8> %b to <4 x double>
-; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %C1 = sitofp <4 x i16> %c to <4 x float>
+; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C1 = sitofp <4 x i16> %c to <4 x float>
 ; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C2 = sitofp <4 x i16> %c to <4 x double>
-; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %D1 = sitofp <4 x i32> %d to <4 x float>
+; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D1 = sitofp <4 x i32> %d to <4 x float>
 ; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D2 = sitofp <4 x i32> %d to <4 x double>
 ; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: ret void
 ;
@@ -283,7 +283,7 @@ define void @sitofp4(<4 x i1> %a, <4 x i8> %b, <4 x i16> %c, <4 x i32> %d) {
 ; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %B2 = sitofp <4 x i8> %b to <4 x double>
 ; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C1 = sitofp <4 x i16> %c to <4 x float>
 ; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C2 = sitofp <4 x i16> %c to <4 x double>
-; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %D1 = sitofp <4 x i32> %d to <4 x float>
+; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D1 = sitofp <4 x i32> %d to <4 x float>
 ; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D2 = sitofp <4 x i32> %d to <4 x double>
 ; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: ret void
 ;
@@ -326,9 +326,9 @@ define void @uitofp4(<4 x i1> %a, <4 x i8> %b, <4 x i16> %c, <4 x i32> %d) {
 ; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %A2 = uitofp <4 x i1> %a to <4 x double>
 ; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %B1 = uitofp <4 x i8> %b to <4 x float>
 ; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %B2 = uitofp <4 x i8> %b to <4 x double>
-; FAST-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %C1 = uitofp <4 x i16> %c to <4 x float>
+; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C1 = uitofp <4 x i16> %c to <4 x float>
 ; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C2 = uitofp <4 x i16> %c to <4 x double>
-; FAST-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %D1 = uitofp <4 x i32> %d to <4 x float>
+; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D1 = uitofp <4 x i32> %d to <4 x float>
 ; FAST-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D2 = uitofp <4 x i32> %d to <4 x double>
 ; FAST-NEXT:  Cost Model: Found an estimated cost of 10 for instruction: ret void
 ;
@@ -339,7 +339,7 @@ define void @uitofp4(<4 x i1> %a, <4 x i8> %b, <4 x i16> %c, <4 x i32> %d) {
 ; SLOW-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %B2 = uitofp <4 x i8> %b to <4 x double>
 ; SLOW-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C1 = uitofp <4 x i16> %c to <4 x float>
 ; SLOW-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C2 = uitofp <4 x i16> %c to <4 x double>
-; SLOW-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %D1 = uitofp <4 x i32> %d to <4 x float>
+; SLOW-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D1 = uitofp <4 x i32> %d to <4 x float>
 ; SLOW-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D2 = uitofp <4 x i32> %d to <4 x double>
 ; SLOW-NEXT:  Cost Model: Found an estimated cost of 10 for instruction: ret void
 ;
@@ -348,9 +348,9 @@ define void @uitofp4(<4 x i1> %a, <4 x i8> %b, <4 x i16> %c, <4 x i32> %d) {
 ; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %A2 = uitofp <4 x i1> %a to <4 x double>
 ; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %B1 = uitofp <4 x i8> %b to <4 x float>
 ; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %B2 = uitofp <4 x i8> %b to <4 x double>
-; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %C1 = uitofp <4 x i16> %c to <4 x float>
+; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C1 = uitofp <4 x i16> %c to <4 x float>
 ; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C2 = uitofp <4 x i16> %c to <4 x double>
-; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %D1 = uitofp <4 x i32> %d to <4 x float>
+; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D1 = uitofp <4 x i32> %d to <4 x float>
 ; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D2 = uitofp <4 x i32> %d to <4 x double>
 ; FAST-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: ret void
 ;
@@ -361,7 +361,7 @@ define void @uitofp4(<4 x i1> %a, <4 x i8> %b, <4 x i16> %c, <4 x i32> %d) {
 ; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %B2 = uitofp <4 x i8> %b to <4 x double>
 ; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C1 = uitofp <4 x i16> %c to <4 x float>
 ; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %C2 = uitofp <4 x i16> %c to <4 x double>
-; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %D1 = uitofp <4 x i32> %d to <4 x float>
+; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D1 = uitofp <4 x i32> %d to <4 x float>
 ; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %D2 = uitofp <4 x i32> %d to <4 x double>
 ; SLOW-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: ret void
 ;
