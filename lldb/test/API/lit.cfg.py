@@ -250,6 +250,9 @@ if is_configured("lldb_executable"):
 if is_configured("test_compiler"):
     dotest_cmd += ["--compiler", config.test_compiler]
 
+if is_configured("rocm_path"):
+    dotest_cmd += ["--rocm-path", config.rocm_path]
+
 if is_configured("dsymutil"):
     dotest_cmd += ["--dsymutil", config.dsymutil]
 
