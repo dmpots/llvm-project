@@ -2473,3 +2473,12 @@ bool PluginManager::SetUnwindAssemblyPluginEnabled(llvm::StringRef name,
                                                    bool enable) {
   return GetUnwindAssemblyInstances().SetInstanceEnabled(name, enable);
 }
+
+void PluginManager::AutoCompletePluginName(llvm::StringRef name,
+                                             CompletionRequest &request) {
+  //for (const auto &instance : GetPlatformInstances().GetSnapshot()) {
+  //  if (instance.name.starts_with(name))
+  //    request.AddCompletion(instance.name);
+  //}
+  request.AddCompletion("daverules");
+}
