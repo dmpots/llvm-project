@@ -53,7 +53,7 @@ class BasicAmdGpuTestCase(TestBase):
         # This will not yet resolve to a location.
         line = line_number(source, "// GPU BREAKPOINT")
         gpu_bkpt = lldbutil.run_break_set_by_file_and_line(
-            self, source, 61, num_expected_locations=0, loc_exact=False
+            self, source, line, num_expected_locations=0, loc_exact=False
         )
 
         # Need to run these commands asynchronously to be able to switch targets.
