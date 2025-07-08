@@ -52,9 +52,10 @@ if lldb_build_intel_pt == '1':
     config.enabled_plugins.append('intel-pt')
 
 # GPU Plugins
-config.rocm_path = '@ROCM_PATH@'
-if config.rocm_path:
-    config.available_features.add('lldb-amdgpu')
+lldb_enable_amdgpu_plugin = '@LLDB_ENABLE_AMDGPU_PLUGIN@'
+if lldb_enable_amdgpu_plugin == 'ON' or lldb_enable_amdgpu_plugin == '1':
+    config.enabled_plugins.append('lldb-amdgpu')
+    config.hipcc_path = os.path.join('@ROCM_PATH@', 'bin', 'hipcc')
 
 # Additional dotest arguments can be passed to lit by providing a
 # semicolon-separates list: --param dotest-args="arg;arg".

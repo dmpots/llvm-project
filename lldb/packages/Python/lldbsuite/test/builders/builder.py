@@ -242,9 +242,8 @@ class Builder:
         return []
 
     def getRocmArgs(self):
-        if configuration.rocm_path:
-            hipcc = configuration.rocm_path + "/bin/hipcc"
-            return ["HIPCC={}".format(hipcc)]
+        if configuration.hipcc_path:
+            return ["HIPCC={}".format(configuration.hipcc_path)]
         return []
 
     def getLLDBObjRoot(self):

@@ -266,8 +266,8 @@ def parseOptionsAndInitTestdirs():
                     configuration.compiler = candidate
                     break
 
-    if args.rocm_path:
-        configuration.rocm_path = os.path.abspath(args.rocm_path)
+    if args.hipcc_path:
+        configuration.hipcc_path = os.path.abspath(args.hipcc_path)
 
     if args.make:
         configuration.make_path = args.make

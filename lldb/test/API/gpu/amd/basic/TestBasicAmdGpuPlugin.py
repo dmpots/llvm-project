@@ -67,9 +67,10 @@ class BasicAmdGpuTestCase(TestBase):
         # Continue the CPU process.
         self.dbg.SetSelectedTarget(cpu_target)
         self.runCmd("c")
-        lldbutil.expect_state_changes(self, listener, cpu_process, [lldb.eStateRunning, lldb.eStateStopped])
+        lldbutil.expect_state_changes(self, listener, cpu_process, [lldb.eStateRunning])
 
         # TODO: Looks like the CPU is hitting an extra SIGSTOP for some reason so continue again after it stops.
+        lldbutil.expect_state_changes(self, listener, cpu_process, [lldb.eStateStopped])
         self.dbg.SetSelectedTarget(cpu_target)
         self.runCmd("c")
         lldbutil.expect_state_changes(self, listener, cpu_process, [lldb.eStateRunning])

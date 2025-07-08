@@ -59,12 +59,12 @@ def create_parser():
         ),
     )
     group.add_argument(
-        "--rocm-path",
+        "--hipcc-path",
         metavar="path",
-        dest="rocm_path",
+        dest="hipcc_path",
         default="",
         help=textwrap.dedent(
-            """Specify the path to a ROCM installation."""
+            """Specify the path to a ROCM hipcc compiler."""
         ),
     )
     if sys.platform == "darwin":
