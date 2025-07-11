@@ -241,7 +241,7 @@ class Builder:
             return libcpp_args
         return []
 
-    def getRocmArgs(self):
+    def getHipccArgs(self):
         if configuration.hipcc_path:
             return ["HIPCC={}".format(configuration.hipcc_path)]
         return []
@@ -298,7 +298,7 @@ class Builder:
             self.getSDKRootSpec(),
             self.getModuleCacheSpec(),
             self.getLibCxxArgs(),
-            self.getRocmArgs(),
+            self.getHipccArgs(),
             self.getLLDBObjRoot(),
             self.getCmdLine(dictionary),
         ]
