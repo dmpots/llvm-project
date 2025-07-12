@@ -58,6 +58,15 @@ def create_parser():
             """Specify the path to sysroot. This overrides apple_sdk sysroot."""
         ),
     )
+    group.add_argument(
+        "--hipcc-path",
+        metavar="path",
+        dest="hipcc_path",
+        default="",
+        help=textwrap.dedent(
+            """Specify the path to a ROCM hipcc compiler."""
+        ),
+    )
     if sys.platform == "darwin":
         group.add_argument(
             "--apple-sdk",
