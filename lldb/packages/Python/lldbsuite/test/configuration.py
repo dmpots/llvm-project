@@ -44,6 +44,7 @@ compiler = None
 dsymutil = None
 sdkroot = None
 make_path = None
+hipcc_path = None
 
 # Allow specifying a triple for cross compilation.
 triple = None
