@@ -573,7 +573,7 @@ LLDBServerPluginAMDGPU::BreakpointWasHit(GPUPluginBreakpointHitArgs &args) {
       response.actions.wait_for_gpu_process_to_resume = true;
       auto process = m_gdb_server->GetCurrentProcess();
       ThreadAMDGPU *thread = (ThreadAMDGPU *)process->GetCurrentThread();
-      thread->SetStopReason(lldb::eStopReasonDynammicLoader);
+      thread->SetStopReason(lldb::eStopReasonDynamicLoader);
       process->Halt();
     }
   }

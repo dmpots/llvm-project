@@ -267,9 +267,11 @@ void GDBRemoteCommunicationServerLLGS::RegisterPacketHandlers() {
       StringExtractorGDBRemote::eServerPacketType_jGPUPluginBreakpointHit,
       &GDBRemoteCommunicationServerLLGS::Handle_jGPUPluginBreakpointHit);
   RegisterMemberFunctionHandler(
-      StringExtractorGDBRemote::eServerPacketType_jGPUPluginGetDynamicLoaderLibraryInfo,
-      &GDBRemoteCommunicationServerLLGS::Handle_jGPUPluginGetDynamicLoaderLibraryInfo);
-  }
+      StringExtractorGDBRemote::
+          eServerPacketType_jGPUPluginGetDynamicLoaderLibraryInfo,
+      &GDBRemoteCommunicationServerLLGS::
+          Handle_jGPUPluginGetDynamicLoaderLibraryInfo);
+}
 
 void GDBRemoteCommunicationServerLLGS::SetLaunchInfo(
     const ProcessLaunchInfo &info) {
@@ -792,7 +794,7 @@ static const char *GetStopReasonString(StopReason stop_reason) {
     return "vforkdone";
   case eStopReasonInterrupt:
     return "async interrupt";
-  case eStopReasonDynammicLoader:
+  case eStopReasonDynamicLoader:
     return "dyld";
   case eStopReasonHistoryBoundary:
   case eStopReasonInstrumentation:
@@ -1167,16 +1169,16 @@ void GDBRemoteCommunicationServerLLGS::HandleInferiorState_Stopped(
   // Check if any plug-ins have new connections
   StreamGDBRemote extra_stop_reply_args;
   for (auto &plugin_up : m_plugins) {
-    if (std::optional<GPUActions> connection_info = 
-          plugin_up->NativeProcessIsStopping()) {
+    if (std::optional<GPUActions> connection_info =
+            plugin_up->NativeProcessIsStopping()) {
       extra_stop_reply_args.PutCString("gpu-actions:");
       extra_stop_reply_args.PutAsJSON(*connection_info, /*hex_ascii=*/true);
       extra_stop_reply_args.PutChar(';');
-    } 
+    }
   }
 
   PacketResult result = SendStopReasonForState(
-      *process, StateType::eStateStopped, /*force_synchronous=*/false, 
+      *process, StateType::eStateStopped, /*force_synchronous=*/false,
       extra_stop_reply_args.GetData());
   if (result != PacketResult::Success) {
     LLDB_LOGF(log,
@@ -1196,7 +1198,6 @@ void GDBRemoteCommunicationServerLLGS::ProcessStateChanged(
               "NativeProcessProtocol pid %" PRIu64 ", state: %s",
               __FUNCTION__, process->GetID(), StateAsCString(state));
   }
-
 
   switch (state) {
   case StateType::eStateRunning:
@@ -2093,7 +2094,7 @@ GDBRemoteCommunicationServerLLGS::SendStopReasonForState(
     // Make sure we set the current thread so g and p packets return the data
     // the gdb will expect.
     SetCurrentThreadID(tid);
-    return SendStopReplyPacketForThread(process, tid, force_synchronous, 
+    return SendStopReplyPacketForThread(process, tid, force_synchronous,
                                         extra_stop_reply_args);
   }
 
@@ -3751,7 +3752,7 @@ GDBRemoteCommunicationServerLLGS::Handle_qThreadStopInfo(
     return SendErrorResponse(0x15);
   }
   return SendStopReplyPacketForThread(*m_current_process, tid,
-                                      /*force_synchronous=*/true, 
+                                      /*force_synchronous=*/true,
                                       llvm::StringRef());
 }
 
@@ -3787,7 +3788,7 @@ GDBRemoteCommunication::PacketResult
 GDBRemoteCommunicationServerLLGS::Handle_jGPUPluginInitialize(
     StringExtractorGDBRemote &) {
   std::vector<GPUActions> gpu_actions;
-  for (auto &plugin_up: m_plugins)
+  for (auto &plugin_up : m_plugins)
     gpu_actions.push_back(plugin_up->GetInitializeActions());
   StreamGDBRemote response;
   response.PutAsJSONArray(gpu_actions);
@@ -3800,18 +3801,18 @@ GDBRemoteCommunicationServerLLGS::Handle_jGPUPluginBreakpointHit(
 
   packet.ConsumeFront("jGPUPluginBreakpointHit:");
   Expected<GPUPluginBreakpointHitArgs> args =
-      json::parse<GPUPluginBreakpointHitArgs>(packet.Peek(), 
+      json::parse<GPUPluginBreakpointHitArgs>(packet.Peek(),
                                               "GPUPluginBreakpointHitArgs");
   if (!args)
     return SendErrorResponse(args.takeError());
 
-  for (auto &plugin_up: m_plugins) {
+  for (auto &plugin_up : m_plugins) {
     if (plugin_up->GetPluginName() == args->plugin_name) {
-      Expected<GPUPluginBreakpointHitResponse> bp_response = 
+      Expected<GPUPluginBreakpointHitResponse> bp_response =
           plugin_up->BreakpointWasHit(*args);
       if (!bp_response)
         return SendErrorResponse(bp_response.takeError());
-        
+
       StreamGDBRemote response;
       response.PutAsJSON(*bp_response, /*hex_ascii=*/false);
       return SendPacketNoLock(response.GetString());
@@ -3819,7 +3820,6 @@ GDBRemoteCommunicationServerLLGS::Handle_jGPUPluginBreakpointHit(
   }
   return SendErrorResponse(Status::FromErrorString("Invalid plugin name."));
 }
-
 
 GDBRemoteCommunication::PacketResult
 GDBRemoteCommunicationServerLLGS::Handle_jGPUPluginGetDynamicLoaderLibraryInfo(
@@ -3831,10 +3831,9 @@ GDBRemoteCommunicationServerLLGS::Handle_jGPUPluginGetDynamicLoaderLibraryInfo(
   if (!args)
     return SendErrorResponse(args.takeError());
 
-
   if (!m_current_process)
     return SendErrorResponse(Status::FromErrorString("invalid process"));
-  std::optional<GPUDynamicLoaderResponse> libraries_response = 
+  std::optional<GPUDynamicLoaderResponse> libraries_response =
       m_current_process->GetGPUDynamicLoaderLibraryInfos(*args);
   if (!libraries_response)
     return SendErrorResponse(Status::FromErrorString(
@@ -4407,12 +4406,8 @@ std::vector<std::string> GDBRemoteCommunicationServerLLGS::HandleFeatures(
     const llvm::ArrayRef<llvm::StringRef> client_features) {
   std::vector<std::string> ret =
       GDBRemoteCommunicationServerCommon::HandleFeatures(client_features);
-  ret.insert(ret.end(), {
-                            "QThreadSuffixSupported+",
-                            "QListThreadsInStopReply+",
-                            "qXfer:features:read+",
-                            "QNonStop+"
-                        });
+  ret.insert(ret.end(), {"QThreadSuffixSupported+", "QListThreadsInStopReply+",
+                         "qXfer:features:read+", "QNonStop+"});
 
   // report server-only features
   using Extension = NativeProcessProtocol::Extension;
