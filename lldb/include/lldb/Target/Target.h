@@ -1568,9 +1568,9 @@ public:
   }
 
   void SetGPUPluginTarget(llvm::StringRef plugin_name, 
-                          lldb::TargetSP target_sp) {
-    m_native_target_gpu_wp = shared_from_this();
-    m_gpu_plugin_targets[plugin_name] = target_sp;
+                          lldb::TargetSP gpu_target_sp) {
+    gpu_target_sp->m_native_target_gpu_wp = shared_from_this();
+    m_gpu_plugin_targets[plugin_name] = gpu_target_sp;
   }
 
   lldb::TargetSP GetNativeTargetForGPU() {
