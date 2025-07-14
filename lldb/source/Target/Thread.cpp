@@ -1759,7 +1759,7 @@ std::string Thread::StopReasonAsString(lldb::StopReason reason) {
     return "async interrupt";
     case eStopReasonHistoryBoundary:
     return "history boundary";
-  case eStopReasonDynammicLoader:
+  case eStopReasonDynamicLoader:
     return "dynamic loader";
   }
 

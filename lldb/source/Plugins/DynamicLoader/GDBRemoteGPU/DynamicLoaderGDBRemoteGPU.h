@@ -50,7 +50,7 @@ public:
 
   void DidLaunch() override;
 
-  bool HandleStopReasonDynammicLoader() override;
+  bool HandleStopReasonDynamicLoader() override;
   
   lldb::ThreadPlanSP GetStepThroughTrampolinePlan(lldb_private::Thread &thread,
                                                   bool stop_others) override;

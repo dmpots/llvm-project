@@ -30,7 +30,7 @@ class Symbol;
 class SymbolContext;
 class SymbolContextList;
 class Thread;
-}
+} // namespace lldb_private
 
 namespace lldb_private {
 
@@ -91,15 +91,13 @@ public:
   /// the dynamic loader can work together to detect this.
   virtual bool ProcessDidExec() { return false; }
 
-  /// A function that allows dynamic loader to handle eStopReasonDynammicLoader
+  /// A function that allows dynamic loader to handle eStopReasonDynamicLoader
   /// stop reasons. This is intended for dynamic loaders that aren't able to
   /// set a breakpoint in the process, but rely on being notified by a driver or
   /// debug services that shared libraries are available.
   ///
   /// \returns True if handled, false otherwise.
-  virtual bool HandleStopReasonDynammicLoader() { 
-    return false;
-  }
+  virtual bool HandleStopReasonDynamicLoader() { return false; }
 
   /// Get whether the process should stop when images change.
   ///
@@ -408,7 +406,6 @@ protected:
 
   // Calls into the Process protected method LoadOperatingSystemPlugin:
   void LoadOperatingSystemPlugin(bool flush);
-
 
   // Member variables.
   Process

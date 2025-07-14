@@ -268,7 +268,7 @@ enum StopReason {
   /// work. The process will auto continue after the plugin is done loading or
   /// unloading some shared libraries unless the target setting named
   /// "target.process.stop-on-sharedlibrary-events" it set to true.
-  eStopReasonDynammicLoader
+  eStopReasonDynamicLoader
 };
 
 /// Command Return Status Types.
@@ -317,7 +317,7 @@ enum ConnectionStatus {
   eConnectionStatusNoConnection,   ///< No connection
   eConnectionStatusLostConnection, ///< Lost connection while connected to a
                                    ///< valid connection
-  eConnectionStatusInterrupted ///< Interrupted read
+  eConnectionStatusInterrupted     ///< Interrupted read
 };
 
 enum ErrorType {
@@ -1111,7 +1111,7 @@ enum PathType {
   ePathTypeGlobalLLDBTempSystemDir, ///< The LLDB temp directory for this
                                     ///< system, NOT cleaned up on a process
                                     ///< exit.
-  ePathTypeClangDir ///< Find path to Clang builtin headers
+  ePathTypeClangDir                 ///< Find path to Clang builtin headers
 };
 
 /// Kind of member function.
