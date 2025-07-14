@@ -54,7 +54,7 @@ void DynamicLoaderGDBRemoteGPU::DidAttach() { LoadModulesFromGDBServer(true); }
 /// attaching to a process.
 void DynamicLoaderGDBRemoteGPU::DidLaunch() { LoadModulesFromGDBServer(true); }
 
-bool DynamicLoaderGDBRemoteGPU::HandleStopReasonDynammicLoader() { 
+bool DynamicLoaderGDBRemoteGPU::HandleStopReasonDynamicLoader() {
   return LoadModulesFromGDBServer(false);
 }
 
@@ -76,29 +76,30 @@ bool DynamicLoaderGDBRemoteGPU::LoadModulesFromGDBServer(bool full) {
     std::shared_ptr<DataBufferHeap> data_sp;
     // Read the object file from memory if requested.
     if (info.native_memory_address && info.native_memory_size) {
-      LLDB_LOG(log, "Reading \"{0}\" from memory at {1:x}", info.pathname, 
+      LLDB_LOG(log, "Reading \"{0}\" from memory at {1:x}", info.pathname,
                *info.native_memory_address);
       TargetSP cpu_target_sp = m_process->GetTarget().GetNativeTargetForGPU();
       if (cpu_target_sp) {
         ProcessSP cpu_process_sp = cpu_target_sp->GetProcessSP();
         if (cpu_process_sp) {
-          data_sp = std::make_shared<DataBufferHeap>(*info.native_memory_size, 0);
+          data_sp =
+              std::make_shared<DataBufferHeap>(*info.native_memory_size, 0);
           Status error;
           const size_t bytes_read = cpu_process_sp->ReadMemory(
               *info.native_memory_address, data_sp->GetBytes(),
               data_sp->GetByteSize(), error);
           if (bytes_read != *info.native_memory_size) {
             LLDB_LOG(log, "Failed to read \"{0}\" from memory at {1:x}: {2}",
-                    info.pathname, *info.native_memory_address, error);
+                     info.pathname, *info.native_memory_address, error);
             data_sp.reset();
           }
         } else {
           LLDB_LOG(log, "Invalid CPU process for \"{0}\" from memory at {1:x}",
-                  info.pathname, *info.native_memory_address);
+                   info.pathname, *info.native_memory_address);
         }
       } else {
         LLDB_LOG(log, "Invalid CPU target for \"{0}\" from memory at {1:x}",
-                info.pathname, *info.native_memory_address);
+                 info.pathname, *info.native_memory_address);
       }
     }
     // Extract the UUID if available.
@@ -112,31 +113,31 @@ bool DynamicLoaderGDBRemoteGPU::LoadModulesFromGDBServer(bool full) {
     if (info.file_size)
       module_spec.SetObjectSize(*info.file_size);
     // Get or create the module from the module spec.
-    ModuleSP module_sp = target.GetOrCreateModule(module_spec, 
+    ModuleSP module_sp = target.GetOrCreateModule(module_spec,
                                                   /*notify=*/true);
     if (module_sp) {
-      LLDB_LOG(log, "Created module for \"{0}\": {1:x}", 
-               info.pathname, module_sp.get());
+      LLDB_LOG(log, "Created module for \"{0}\": {1:x}", info.pathname,
+               module_sp.get());
       bool changed = false;
       if (info.load_address) {
-        LLDB_LOG(log, "Setting load address for module \"{0}\" to {1:x}", 
+        LLDB_LOG(log, "Setting load address for module \"{0}\" to {1:x}",
                  info.pathname, *info.load_address);
 
-        module_sp->SetLoadAddress(target, *info.load_address, 
-                                  /*value_is_offset=*/true , changed);
-      } else if (!info.loaded_sections.empty()) {    
-        
+        module_sp->SetLoadAddress(target, *info.load_address,
+                                  /*value_is_offset=*/true, changed);
+      } else if (!info.loaded_sections.empty()) {
+
         // Set the load address of the module to the first loaded section.
         bool warn_multiple = true;
         for (const GPUSectionInfo &sect : info.loaded_sections) {
           if (sect.names.empty())
             continue;
-          // Find the section by name using the names specified. If there is 
+          // Find the section by name using the names specified. If there is
           // only on name, them find it. If there are multiple names, the top
           // most section names comes first and then we find child sections
           // by name within the previous section.
           SectionSP section_sp;
-          for (uint32_t i=0; i<sect.names.size(); ++i) {
+          for (uint32_t i = 0; i < sect.names.size(); ++i) {
             ConstString name(sect.names[i]);
             if (section_sp)
               section_sp = section_sp->GetChildren().FindSectionByName(name);
@@ -146,21 +147,20 @@ bool DynamicLoaderGDBRemoteGPU::LoadModulesFromGDBServer(bool full) {
               break;
           }
           if (section_sp) {
-            LLDB_LOG(log, "Loading module \"{0}\" section \"{1} to {2:x}", 
+            LLDB_LOG(log, "Loading module \"{0}\" section \"{1} to {2:x}",
                      info.pathname, section_sp->GetName(), sect.load_address);
-            changed = target.SetSectionLoadAddress(section_sp, 
-                                                   sect.load_address, 
-                                                   warn_multiple);
+            changed = target.SetSectionLoadAddress(
+                section_sp, sect.load_address, warn_multiple);
           } else {
-            LLDB_LOG(log, "Failed to find section \"{0}\"", 
+            LLDB_LOG(log, "Failed to find section \"{0}\"",
                      section_sp->GetName());
           }
         }
       }
       if (changed) {
-        LLDB_LOG(log, "Module \"{0}\" was loaded, notifying target", 
+        LLDB_LOG(log, "Module \"{0}\" was loaded, notifying target",
                  info.pathname);
-        loaded_module_list.AppendIfNeeded(module_sp);            
+        loaded_module_list.AppendIfNeeded(module_sp);
       }
     }
   }
@@ -170,13 +170,12 @@ bool DynamicLoaderGDBRemoteGPU::LoadModulesFromGDBServer(bool full) {
 
 ThreadPlanSP
 DynamicLoaderGDBRemoteGPU::GetStepThroughTrampolinePlan(Thread &thread,
-                                                  bool stop_others) {
+                                                        bool stop_others) {
   return ThreadPlanSP();
 }
 
 Status DynamicLoaderGDBRemoteGPU::CanLoadImage() {
-  return Status::FromErrorString(
-      "can't load images on GPU targets");
+  return Status::FromErrorString("can't load images on GPU targets");
 }
 
 void DynamicLoaderGDBRemoteGPU::Initialize() {

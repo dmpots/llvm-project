@@ -115,7 +115,7 @@ public:
         if (num_constituents == 1) {
           BreakpointLocationSP bp_loc_sp = bp_site_sp->GetConstituentAtIndex(0);
           if (bp_loc_sp) {
-            Breakpoint & bkpt = bp_loc_sp->GetBreakpoint();
+            Breakpoint &bkpt = bp_loc_sp->GetBreakpoint();
             m_break_id = bkpt.GetID();
             m_was_one_shot = bkpt.IsOneShot();
             m_was_all_internal = bkpt.IsInternal();
@@ -178,9 +178,7 @@ public:
     return false;
   }
 
-  bool DoShouldNotify(Event *event_ptr) override {
-    return !m_was_all_internal;
-  }
+  bool DoShouldNotify(Event *event_ptr) override { return !m_was_all_internal; }
 
   const char *GetDescription() override {
     if (m_description.empty()) {
@@ -317,8 +315,8 @@ protected:
 
         if (num_constituents == 0) {
           m_should_stop = true;
-          actually_hit_any_locations = true;  // We're going to stop, don't 
-                                              // change the stop info.
+          actually_hit_any_locations = true; // We're going to stop, don't
+                                             // change the stop info.
         } else {
           // We go through each location, and test first its precondition -
           // this overrides everything.  Note, we only do this once per
@@ -399,7 +397,7 @@ protected:
               Debugger::ReportWarning(
                   "hit breakpoint while running function, skipping commands "
                   "and conditions to prevent recursion",
-                    process->GetTarget().GetDebugger().GetID());
+                  process->GetTarget().GetDebugger().GetID());
               return;
             }
           }
@@ -473,7 +471,7 @@ protected:
                   bp_loc_sp->ConditionSaysStop(exe_ctx, condition_error);
 
               if (!condition_error.Success()) {
-                // If the condition fails to evaluate, we are going to stop 
+                // If the condition fails to evaluate, we are going to stop
                 // at it, so the location was hit.
                 actually_hit_any_locations = true;
                 const char *err_str =
@@ -497,7 +495,7 @@ protected:
                           loc_desc.GetData(),
                           static_cast<unsigned long long>(thread_sp->GetID()),
                           condition_says_stop);
-                if (condition_says_stop) 
+                if (condition_says_stop)
                   actually_hit_any_locations = true;
                 else {
                   // We don't want to increment the hit count of breakpoints if
@@ -526,8 +524,7 @@ protected:
             // to continue.  But failing the condition means the breakpoint was
             // effectively NOT HIT.  So these two states are different.
             bool auto_continue_says_stop = true;
-            if (bp_loc_sp->IsAutoContinue())
-            {
+            if (bp_loc_sp->IsAutoContinue()) {
               LLDB_LOGF(log,
                         "Continuing breakpoint %s as AutoContinue was set.",
                         loc_desc.GetData());
@@ -619,7 +616,7 @@ protected:
         // "was I hit" checks.  So say we aren't stopped.
         GetThread()->ResetStopInfo();
         LLDB_LOGF(log, "Process::%s all locations failed condition checks.",
-          __FUNCTION__);
+                  __FUNCTION__);
       }
 
       LLDB_LOGF(log,
@@ -652,8 +649,8 @@ public:
   // performing watchpoint actions.
   class WatchpointSentry {
   public:
-    WatchpointSentry(ProcessSP p_sp, WatchpointSP w_sp) : process_sp(p_sp),
-                     watchpoint_sp(w_sp) {
+    WatchpointSentry(ProcessSP p_sp, WatchpointSP w_sp)
+        : process_sp(p_sp), watchpoint_sp(w_sp) {
       if (process_sp && watchpoint_sp) {
         const bool notify = false;
         watchpoint_sp->TurnOnEphemeralMode();
@@ -676,15 +673,15 @@ public:
     }
 
     ~WatchpointSentry() {
-        DoReenable();
-        if (process_sp)
-            process_sp->ClearPreResumeAction(SentryPreResumeAction, this);
+      DoReenable();
+      if (process_sp)
+        process_sp->ClearPreResumeAction(SentryPreResumeAction, this);
     }
 
     static bool SentryPreResumeAction(void *sentry_void) {
-        WatchpointSentry *sentry = (WatchpointSentry *) sentry_void;
-        sentry->DoReenable();
-        return true;
+      WatchpointSentry *sentry = (WatchpointSentry *)sentry_void;
+      sentry->DoReenable();
+      return true;
     }
 
   private:
@@ -718,7 +715,7 @@ protected:
   // them and they won't behave correctly.
   class ThreadPlanStepOverWatchpoint : public ThreadPlanStepInstruction {
   public:
-    ThreadPlanStepOverWatchpoint(Thread &thread, 
+    ThreadPlanStepOverWatchpoint(Thread &thread,
                                  StopInfoWatchpointSP stop_info_sp,
                                  WatchpointSP watch_sp)
         : ThreadPlanStepInstruction(thread, false, true, eVoteNoOpinion,
@@ -738,7 +735,7 @@ protected:
       }
       return true;
     }
-    
+
     bool DoPlanExplainsStop(Event *event_ptr) override {
       if (ThreadPlanStepInstruction::DoPlanExplainsStop(event_ptr))
         return true;
@@ -746,8 +743,8 @@ protected:
       // lldb-server resets the stop info for threads that didn't get to run,
       // so we might have not gotten to run, but still have a watchpoint stop
       // reason, in which case this will indeed be for us.
-      if (stop_info_sp 
-          && stop_info_sp->GetStopReason() == eStopReasonWatchpoint)
+      if (stop_info_sp &&
+          stop_info_sp->GetStopReason() == eStopReasonWatchpoint)
         return true;
       return false;
     }
@@ -756,7 +753,7 @@ protected:
       // Don't artifically keep the watchpoint alive.
       m_watch_sp.reset();
     }
-    
+
     bool ShouldStop(Event *event_ptr) override {
       bool should_stop = ThreadPlanStepInstruction::ShouldStop(event_ptr);
       bool plan_done = MischiefManaged();
@@ -767,10 +764,8 @@ protected:
       }
       return should_stop;
     }
-    
-    bool ShouldRunBeforePublicStop() override {
-        return true;
-    }
+
+    bool ShouldRunBeforePublicStop() override { return true; }
 
   protected:
     void ResetWatchpoint() {
@@ -801,16 +796,16 @@ protected:
     Log *log = GetLog(LLDBLog::Process);
     ThreadSP thread_sp(m_thread_wp.lock());
     assert(thread_sp);
-    
+
     if (thread_sp->GetTemporaryResumeState() == eStateSuspended) {
       // This is the second firing of a watchpoint so don't process it again.
       LLDB_LOG(log, "We didn't run but stopped with a StopInfoWatchpoint, we "
-               "have already handled this one, don't do it again.");
+                    "have already handled this one, don't do it again.");
       m_should_stop = false;
       m_should_stop_is_valid = true;
       return m_should_stop;
     }
-    
+
     WatchpointSP wp_sp(
         thread_sp->CalculateTarget()->GetWatchpointList().FindByID(GetValue()));
     // If we can no longer find the watchpoint, we just have to stop:
@@ -848,13 +843,13 @@ protected:
     bool wp_triggers_after = process_sp->GetWatchpointReportedAfter();
 
     if (!wp_triggers_after) {
-      // We have to step over the watchpoint before we know what to do:   
-      StopInfoWatchpointSP me_as_siwp_sp 
-          = std::static_pointer_cast<StopInfoWatchpoint>(shared_from_this());
+      // We have to step over the watchpoint before we know what to do:
+      StopInfoWatchpointSP me_as_siwp_sp =
+          std::static_pointer_cast<StopInfoWatchpoint>(shared_from_this());
       ThreadPlanSP step_over_wp_sp(new ThreadPlanStepOverWatchpoint(
           *(thread_sp.get()), me_as_siwp_sp, wp_sp));
       // When this plan is done we want to stop, so set this as a Controlling
-      // plan.    
+      // plan.
       step_over_wp_sp->SetIsControllingPlan(true);
       step_over_wp_sp->SetOkayToDiscard(false);
 
@@ -862,15 +857,15 @@ protected:
       error = thread_sp->QueueThreadPlan(step_over_wp_sp, false);
       // If we couldn't push the thread plan, just stop here:
       if (!error.Success()) {
-        LLDB_LOGF(log, "Could not push our step over watchpoint plan: %s", 
-            error.AsCString());
+        LLDB_LOGF(log, "Could not push our step over watchpoint plan: %s",
+                  error.AsCString());
 
         m_should_stop = true;
         m_should_stop_is_valid = true;
         return true;
       } else {
-      // Otherwise, don't set m_should_stop, we don't know that yet.  Just 
-      // say we should continue, and tell the thread we really should do so:
+        // Otherwise, don't set m_should_stop, we don't know that yet.  Just
+        // say we should continue, and tell the thread we really should do so:
         thread_sp->SetShouldRunBeforePublicStop(true);
         m_using_step_over_plan = true;
         return false;
@@ -880,7 +875,7 @@ protected:
       m_should_stop_is_valid = true;
       return m_should_stop;
     }
-    
+
     return m_should_stop;
   }
 
@@ -898,7 +893,6 @@ protected:
     // course of this code.  Also by default we're going to stop, so set that
     // here.
     m_should_stop = true;
-
 
     ThreadSP thread_sp(m_thread_wp.lock());
     if (thread_sp) {
@@ -983,11 +977,11 @@ protected:
         // If the condition says to stop, we run the callback to further decide
         // whether to stop.
         if (m_should_stop) {
-            // FIXME: For now the callbacks have to run in async mode - the
-            // first time we restart we need
-            // to get out of there.  So set it here.
-            // When we figure out how to nest watchpoint hits then this will
-            // change.
+          // FIXME: For now the callbacks have to run in async mode - the
+          // first time we restart we need
+          // to get out of there.  So set it here.
+          // When we figure out how to nest watchpoint hits then this will
+          // change.
 
           bool old_async = debugger.GetAsyncExecution();
           debugger.SetAsyncExecution(true);
@@ -1045,7 +1039,7 @@ private:
     assert(m_using_step_over_plan);
     m_step_over_plan_complete = true;
   }
-  
+
   bool m_should_stop = false;
   bool m_should_stop_is_valid = false;
   // A false watchpoint hit has happened -
@@ -1470,19 +1464,18 @@ protected:
 };
 
 /// A stop reason for causing shared libraries to load. This will create a stop
-/// info that will resume the process by returning the right value for 
-/// StopInfo::ShouldStopSynchronous(...). This allows a process to stop and 
-/// report it wants to load/unload shared libraries and auto continue after all 
+/// info that will resume the process by returning the right value for
+/// StopInfo::ShouldStopSynchronous(...). This allows a process to stop and
+/// report it wants to load/unload shared libraries and auto continue after all
 /// libraries have been loaded/unloaded.
 class StopInfoDyld : public StopInfo {
 public:
-  StopInfoDyld(Thread &thread, const char *description)
-      : StopInfo(thread, 0) {
+  StopInfoDyld(Thread &thread, const char *description) : StopInfo(thread, 0) {
     SetDescription(description ? description : "dynamic loader");
   }
   ~StopInfoDyld() override = default;
-  StopReason GetStopReason() const override { 
-    return lldb::eStopReasonDynammicLoader; 
+  StopReason GetStopReason() const override {
+    return lldb::eStopReasonDynamicLoader;
   }
   bool ShouldStopSynchronous(Event *event_ptr) override {
     if (ThreadSP thread_sp = GetThread()) {
@@ -1556,22 +1549,19 @@ StopInfoSP StopInfo::CreateStopReasonHistoryBoundary(Thread &thread,
   return StopInfoSP(new StopInfoHistoryBoundary(thread, description));
 }
 
-StopInfoSP StopInfo::CreateStopReasonDyld(Thread &thread, 
+StopInfoSP StopInfo::CreateStopReasonDyld(Thread &thread,
                                           const char *description) {
   return StopInfoSP(new StopInfoDyld(thread, description));
 }
-
 
 StopInfoSP StopInfo::CreateStopReasonWithExec(Thread &thread) {
   return StopInfoSP(new StopInfoExec(thread));
 }
 
-StopInfoSP StopInfo::CreateStopReasonFork(Thread &thread,
-                                          lldb::pid_t child_pid,
+StopInfoSP StopInfo::CreateStopReasonFork(Thread &thread, lldb::pid_t child_pid,
                                           lldb::tid_t child_tid) {
   return StopInfoSP(new StopInfoFork(thread, child_pid, child_tid));
 }
-
 
 StopInfoSP StopInfo::CreateStopReasonVFork(Thread &thread,
                                            lldb::pid_t child_pid,

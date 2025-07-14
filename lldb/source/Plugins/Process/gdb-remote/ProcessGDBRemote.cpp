@@ -78,16 +78,15 @@
 
 #include "GDBRemoteRegisterContext.h"
 #include "GDBRemoteRegisterFallback.h"
+#include "Plugins/DynamicLoader/GDBRemoteGPU/DynamicLoaderGDBRemoteGPU.h"
 #include "Plugins/Process/Utility/GDBRemoteSignals.h"
 #include "Plugins/Process/Utility/InferiorCallPOSIX.h"
 #include "Plugins/Process/Utility/StopInfoMachException.h"
-#include "Plugins/DynamicLoader/GDBRemoteGPU/DynamicLoaderGDBRemoteGPU.h"
 #include "ProcessGDBRemote.h"
 #include "ProcessGDBRemoteLog.h"
 #include "ThreadGDBRemote.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Utility/StringExtractorGDBRemote.h"
-
 
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/StringMap.h"
@@ -475,8 +474,9 @@ void ProcessGDBRemote::BuildDynamicRegisterInfo(bool force) {
             if (encoding != eEncodingInvalid)
               reg_info.encoding = encoding;
           } else if (name == "format") {
-            if (!OptionArgParser::ToFormat(value.str().c_str(), reg_info.format, nullptr)
-                    .Success())
+            if (!OptionArgParser::ToFormat(value.str().c_str(), reg_info.format,
+                                           nullptr)
+                     .Success())
               reg_info.format =
                   llvm::StringSwitch<Format>(value)
                       .Case("binary", eFormatBinary)
@@ -502,9 +502,11 @@ void ProcessGDBRemote::BuildDynamicRegisterInfo(bool force) {
           } else if (name == "generic") {
             reg_info.regnum_generic = Args::StringToGenericRegister(value);
           } else if (name == "container-regs") {
-            SplitCommaSeparatedRegisterNumberString(value, reg_info.value_regs, 16);
+            SplitCommaSeparatedRegisterNumberString(value, reg_info.value_regs,
+                                                    16);
           } else if (name == "invalidate-regs") {
-            SplitCommaSeparatedRegisterNumberString(value, reg_info.invalidate_regs, 16);
+            SplitCommaSeparatedRegisterNumberString(
+                value, reg_info.invalidate_regs, 16);
           }
         }
 
@@ -656,13 +658,14 @@ Status ProcessGDBRemote::DoLaunch(lldb_private::Module *exe_module,
 
   if (log) {
     if (stdin_file_spec || stdout_file_spec || stderr_file_spec)
-      LLDB_LOGF(log,
-                "ProcessGDBRemote::%s provided with STDIO paths via "
-                "launch_info: stdin=%s, stdout=%s, stderr=%s",
-                __FUNCTION__,
-                stdin_file_spec ? stdin_file_spec.GetPath().c_str() : "<null>",
-                stdout_file_spec ? stdout_file_spec.GetPath().c_str() : "<null>",
-                stderr_file_spec ? stderr_file_spec.GetPath().c_str() : "<null>");
+      LLDB_LOGF(
+          log,
+          "ProcessGDBRemote::%s provided with STDIO paths via "
+          "launch_info: stdin=%s, stdout=%s, stderr=%s",
+          __FUNCTION__,
+          stdin_file_spec ? stdin_file_spec.GetPath().c_str() : "<null>",
+          stdout_file_spec ? stdout_file_spec.GetPath().c_str() : "<null>",
+          stderr_file_spec ? stderr_file_spec.GetPath().c_str() : "<null>");
     else
       LLDB_LOGF(log,
                 "ProcessGDBRemote::%s no STDIO paths given via launch_info",
@@ -693,14 +696,11 @@ Status ProcessGDBRemote::DoLaunch(lldb_private::Module *exe_module,
     if (disable_stdio) {
       // set to /dev/null unless redirected to a file above
       if (!stdin_file_spec)
-        stdin_file_spec.SetFile(FileSystem::DEV_NULL,
-                                FileSpec::Style::native);
+        stdin_file_spec.SetFile(FileSystem::DEV_NULL, FileSpec::Style::native);
       if (!stdout_file_spec)
-        stdout_file_spec.SetFile(FileSystem::DEV_NULL,
-                                 FileSpec::Style::native);
+        stdout_file_spec.SetFile(FileSystem::DEV_NULL, FileSpec::Style::native);
       if (!stderr_file_spec)
-        stderr_file_spec.SetFile(FileSystem::DEV_NULL,
-                                 FileSpec::Style::native);
+        stderr_file_spec.SetFile(FileSystem::DEV_NULL, FileSpec::Style::native);
     } else if (platform_sp && platform_sp->IsHost()) {
       // If the debugserver is local and we aren't disabling STDIO, lets use
       // a pseudo terminal to instead of relying on the 'O' packets for stdio
@@ -782,8 +782,7 @@ Status ProcessGDBRemote::DoLaunch(lldb_private::Module *exe_module,
     }
 
     if (GetID() == LLDB_INVALID_PROCESS_ID) {
-      LLDB_LOGF(log, "failed to connect to debugserver: %s",
-                error.AsCString());
+      LLDB_LOGF(log, "failed to connect to debugserver: %s", error.AsCString());
       KillDebugserverProcess();
       return error;
     }
@@ -815,29 +814,30 @@ Status ProcessGDBRemote::DoLaunch(lldb_private::Module *exe_module,
   return error;
 }
 
-class GPUBreakpointCallbackBaton : public TypedBaton<GPUPluginBreakpointHitArgs> {
-  public:
-  explicit GPUBreakpointCallbackBaton(std::unique_ptr<GPUPluginBreakpointHitArgs> Data)
-  : TypedBaton(std::move(Data)) {}
+class GPUBreakpointCallbackBaton
+    : public TypedBaton<GPUPluginBreakpointHitArgs> {
+public:
+  explicit GPUBreakpointCallbackBaton(
+      std::unique_ptr<GPUPluginBreakpointHitArgs> Data)
+      : TypedBaton(std::move(Data)) {}
 };
 
-typedef std::shared_ptr<GPUBreakpointCallbackBaton> GPUBreakpointCallbackBatonSP;
+typedef std::shared_ptr<GPUBreakpointCallbackBaton>
+    GPUBreakpointCallbackBatonSP;
 
 bool ProcessGDBRemote::GPUBreakpointHitCallback(
-    void *baton, 
-    StoppointCallbackContext *context,
-    lldb::user_id_t break_id, 
+    void *baton, StoppointCallbackContext *context, lldb::user_id_t break_id,
     lldb::user_id_t break_loc_id) {
   ProcessSP process_sp = context->exe_ctx_ref.GetProcessSP();
   ProcessGDBRemote *process = static_cast<ProcessGDBRemote *>(process_sp.get());
   return process->GPUBreakpointHit(baton, context, break_id, break_loc_id);
 }
 
-bool ProcessGDBRemote::GPUBreakpointHit(void *baton, 
+bool ProcessGDBRemote::GPUBreakpointHit(void *baton,
                                         StoppointCallbackContext *context,
-                                        lldb::user_id_t break_id, 
+                                        lldb::user_id_t break_id,
                                         lldb::user_id_t break_loc_id) {
-  GPUPluginBreakpointHitArgs *callback_data = 
+  GPUPluginBreakpointHitArgs *callback_data =
       static_cast<GPUPluginBreakpointHitArgs *>(baton);
   // Make a copy of the args so we can fill in any needed symbol values prior
   // to notifying lldb-server.
@@ -846,16 +846,15 @@ bool ProcessGDBRemote::GPUBreakpointHit(void *baton,
   const size_t num_symbols = args.breakpoint.symbol_names.size();
   if (num_symbols > 0) {
     args.symbol_values.resize(num_symbols);
-    for (size_t i=0; i<num_symbols; ++i) {
+    for (size_t i = 0; i < num_symbols; ++i) {
       const auto &symbol_name = args.breakpoint.symbol_names[i];
       SymbolContextList sc_list;
-      target.GetImages().FindSymbolsWithNameAndType(ConstString(symbol_name),
-                                                    lldb::eSymbolTypeAny,
-                                                    sc_list);
+      target.GetImages().FindSymbolsWithNameAndType(
+          ConstString(symbol_name), lldb::eSymbolTypeAny, sc_list);
       SymbolContext sc;
       args.symbol_values[i].name = symbol_name;
       size_t num_symbols = sc_list.GetSize();
-      for (size_t sc_idx=0; sc_idx<num_symbols; ++sc_idx) {
+      for (size_t sc_idx = 0; sc_idx < num_symbols; ++sc_idx) {
         if (sc_list.GetContextAtIndex(sc_idx, sc)) {
           auto load_addr = sc.symbol->GetAddress().GetLoadAddress(&target);
           if (load_addr != LLDB_INVALID_ADDRESS) {
@@ -873,7 +872,7 @@ bool ProcessGDBRemote::GPUBreakpointHit(void *baton,
     // the hit count and other stats on the breakpoint.
     if (response->disable_bp) {
       BreakpointSP bp_sp = target.GetBreakpointByID(break_id);
-      if (bp_sp) 
+      if (bp_sp)
         bp_sp->SetEnabled(false);
     }
     if (Status err = HandleGPUActions(response->actions); err.Fail()) {
@@ -904,10 +903,10 @@ Status ProcessGDBRemote::HandleGPUActions(const GPUActions &gpu_action) {
   //    using stale information, as the GPU target hasn't finished processing
   //    its internal metadata. It's worth mentioning that there are multiple
   //    threads operating on the GPU target.
-  if (!(gpu_action.load_libraries || gpu_action.resume_gpu_process || 
-      gpu_action.wait_for_gpu_process_to_resume))
+  if (!(gpu_action.load_libraries || gpu_action.resume_gpu_process ||
+        gpu_action.wait_for_gpu_process_to_resume))
     return error;
-  lldb::TargetSP gpu_target_sp = 
+  lldb::TargetSP gpu_target_sp =
       GetTarget().GetGPUPluginTarget(gpu_action.plugin_name);
   if (!gpu_target_sp)
     return error;
@@ -935,10 +934,10 @@ Status ProcessGDBRemote::HandleGPUActions(const GPUActions &gpu_action) {
 }
 
 Status ProcessGDBRemote::HandleConnectionRequest(const GPUActions &gpu_action) {
-  const GPUPluginConnectionInfo &connection_info = 
-    gpu_action.connect_info.value();
+  const GPUPluginConnectionInfo &connection_info =
+      gpu_action.connect_info.value();
   Log *log = GetLog(GDBRLog::Plugin);
-  LLDB_LOG(log, "ProcessGDBRemote::HandleConnectionRequest()"); 
+  LLDB_LOG(log, "ProcessGDBRemote::HandleConnectionRequest()");
   auto &debugger = GetTarget().GetDebugger();
   TargetSP gpu_target_sp;
   llvm::StringRef exe_path;
@@ -946,13 +945,13 @@ Status ProcessGDBRemote::HandleConnectionRequest(const GPUActions &gpu_action) {
   OptionGroupPlatform *platform_options = nullptr;
 
   if (connection_info.exe_path)
-      exe_path = *connection_info.exe_path;
+    exe_path = *connection_info.exe_path;
   if (connection_info.triple)
     triple = *connection_info.triple;
   // Create an empty target for our GPU.
   Status error(debugger.GetTargetList().CreateTarget(
-    debugger, exe_path, triple, eLoadDependentsNo, platform_options, 
-    gpu_target_sp));
+      debugger, exe_path, triple, eLoadDependentsNo, platform_options,
+      gpu_target_sp));
   if (error.Fail())
     return error;
   if (!gpu_target_sp)
@@ -973,17 +972,17 @@ Status ProcessGDBRemote::HandleConnectionRequest(const GPUActions &gpu_action) {
   if (!process_sp)
     return Status::FromErrorString("invalid process after connecting");
 
-  GetTarget().SetGPUPluginTarget(gpu_action.plugin_name, 
+  GetTarget().SetGPUPluginTarget(gpu_action.plugin_name,
                                  process_sp->GetTarget().shared_from_this());
   LLDB_LOG(log, "ProcessGDBRemote::HandleConnectionRequest(): successfully "
-           "created process!!!");
+                "created process!!!");
   return Status();
 }
 
 void ProcessGDBRemote::HandleGPUBreakpoints(const GPUActions &gpu_action) {
   Target &target = GetTarget();
-  for (const auto &bp: gpu_action.breakpoints) {
-    // Create data that will live with the breakpoint so when we hit the 
+  for (const auto &bp : gpu_action.breakpoints) {
+    // Create data that will live with the breakpoint so when we hit the
     // breakpoint and the GPUBreakpointHitCallback is called, we can use this
     // data.
     auto args_up = std::make_unique<GPUPluginBreakpointHitArgs>();
@@ -993,20 +992,20 @@ void ProcessGDBRemote::HandleGPUBreakpoints(const GPUActions &gpu_action) {
     BreakpointSP bp_sp;
     if (bp.name_info) {
       if (bp.name_info->shlib && !bp.name_info->shlib->empty())
-        bp_modules.Append(FileSpec(*bp.name_info->shlib, 
-                                   llvm::sys::path::Style::native));
+        bp_modules.Append(
+            FileSpec(*bp.name_info->shlib, llvm::sys::path::Style::native));
       bp_sp = target.CreateBreakpoint(
-          &bp_modules, // Containing modules.
-          nullptr, // Containing source files.
+          &bp_modules,                         // Containing modules.
+          nullptr,                             // Containing source files.
           bp.name_info->function_name.c_str(), // Function name.
-          eFunctionNameTypeFull, // Function name type.
-          eLanguageTypeUnknown, // Language type
-          0, // Byte offset.
-          eLazyBoolNo, // Skip prologue.
-          true, // Internal breakpoint.
-          false); // Request hardware.
+          eFunctionNameTypeFull,               // Function name type.
+          eLanguageTypeUnknown,                // Language type
+          0,                                   // Byte offset.
+          eLazyBoolNo,                         // Skip prologue.
+          true,                                // Internal breakpoint.
+          false);                              // Request hardware.
     } else if (bp.addr_info) {
-      bp_sp = target.CreateBreakpoint(bp.addr_info->load_address, 
+      bp_sp = target.CreateBreakpoint(bp.addr_info->load_address,
                                       /*internal=*/true,
                                       /*request_hardware=*/false);
     }
@@ -1014,10 +1013,10 @@ void ProcessGDBRemote::HandleGPUBreakpoints(const GPUActions &gpu_action) {
       // Create some JSON we can send back to the lldb-server
       // that identifies the plug-in and the breakpoint for when
       // the breakpoint gets hit.
-      auto baton_sp = 
+      auto baton_sp =
           std::make_shared<GPUBreakpointCallbackBaton>(std::move(args_up));
       bp_sp->SetCallback(GPUBreakpointHitCallback, baton_sp,
-                          /*is_synchronous=*/true);
+                         /*is_synchronous=*/true);
     }
   }
 }
@@ -1085,11 +1084,10 @@ Status ProcessGDBRemote::ConnectToDebugserver(llvm::StringRef connect_url) {
     }
   }
   // First dispatch any commands from the platform:
-  auto handle_cmds = [&] (const Args &args) ->  void {
+  auto handle_cmds = [&](const Args &args) -> void {
     for (const Args::ArgEntry &entry : args) {
       StringExtractorGDBRemote response;
-      m_gdb_comm.SendPacketAndWaitForResponse(
-          entry.c_str(), response);
+      m_gdb_comm.SendPacketAndWaitForResponse(entry.c_str(), response);
     }
   };
 
@@ -2157,7 +2155,8 @@ ThreadSP ProcessGDBRemote::SetThreadStopInfo(
           auto error = LoadModules();
           if (error) {
             Log *log(GetLog(GDBRLog::Process));
-            LLDB_LOG_ERROR(log, std::move(error), "Failed to load modules: {0}");
+            LLDB_LOG_ERROR(log, std::move(error),
+                           "Failed to load modules: {0}");
           }
           // TODO: create dyld stop reason, or auto resume depending on value
           // of setting that specifies if we should stop for shared library
@@ -2373,15 +2372,14 @@ ProcessGDBRemote::SetThreadStopInfo(StructuredData::Dictionary *thread_dict) {
       StructuredData::Dictionary *registers_dict = object->GetAsDictionary();
 
       if (registers_dict) {
-        registers_dict->ForEach(
-            [&expedited_register_map](llvm::StringRef key,
-                                      StructuredData::Object *object) -> bool {
-              uint32_t reg;
-              if (llvm::to_integer(key, reg))
-                expedited_register_map[reg] =
-                    std::string(object->GetStringValue());
-              return true; // Keep iterating through all array items
-            });
+        registers_dict->ForEach([&expedited_register_map](
+                                    llvm::StringRef key,
+                                    StructuredData::Object *object) -> bool {
+          uint32_t reg;
+          if (llvm::to_integer(key, reg))
+            expedited_register_map[reg] = std::string(object->GetStringValue());
+          return true; // Keep iterating through all array items
+        });
       }
     } else if (key == g_key_memory) {
       StructuredData::Array *array = object->GetAsArray();
@@ -2628,8 +2626,8 @@ StateType ProcessGDBRemote::SetThreadStopInfo(StringExtractor &stop_packet) {
         }
       } else if (key.compare("gpu-actions") == 0) {
         StringExtractorGDBRemote extractor(value);
-        if (std::optional<GPUActions> gpu_actions = 
-            extractor.GetFromJSONHexASCII<GPUActions>()) {
+        if (std::optional<GPUActions> gpu_actions =
+                extractor.GetFromJSONHexASCII<GPUActions>()) {
           if (Status err = HandleGPUActions(*gpu_actions); err.Fail()) {
             Debugger::ReportError(llvm::formatv(
                 "HandleGPUActions failed. Error: {0}\nActions:\n{1}\n",
@@ -2699,8 +2697,8 @@ void ProcessGDBRemote::RefreshStateAfterStop() {
   // set.
   // Check to see if SetThreadStopInfo() filled in m_thread_ids?
   if (m_thread_ids.empty()) {
-      // No, we need to fetch the thread list manually
-      UpdateThreadIDList();
+    // No, we need to fetch the thread list manually
+    UpdateThreadIDList();
   }
 
   // We might set some stop info's so make sure the thread list is up to
@@ -4065,9 +4063,9 @@ thread_result_t ProcessGDBRemote::AsyncThread() {
             default:
               SetPrivateState(stop_state);
               break;
-            }   // switch(stop_state)
-          }     // if (continue_packet)
-        }       // case eBroadcastBitAsyncContinue
+            } // switch(stop_state)
+          } // if (continue_packet)
+        } // case eBroadcastBitAsyncContinue
         break;
 
         case eBroadcastBitAsyncThreadShouldExit:
@@ -4238,7 +4236,8 @@ Status ProcessGDBRemote::SendEventData(const char *data) {
 DataExtractor ProcessGDBRemote::GetAuxvData() {
   DataBufferSP buf;
   if (m_gdb_comm.GetQXferAuxvReadSupported()) {
-    llvm::Expected<std::string> response = m_gdb_comm.ReadExtFeature("auxv", "");
+    llvm::Expected<std::string> response =
+        m_gdb_comm.ReadExtFeature("auxv", "");
     if (response)
       buf = std::make_shared<DataBufferHeap>(response->c_str(),
                                              response->length());
@@ -5088,7 +5087,8 @@ bool ProcessGDBRemote::GetGDBServerRegisterInfoXMLAndProcess(
     ArchSpec &arch_to_use, std::string xml_filename,
     std::vector<DynamicRegisterInfo::Register> &registers) {
   // request the target xml file
-  llvm::Expected<std::string> raw = m_gdb_comm.ReadExtFeature("features", xml_filename);
+  llvm::Expected<std::string> raw =
+      m_gdb_comm.ReadExtFeature("features", xml_filename);
   if (errorToBool(raw.takeError()))
     return false;
 
@@ -5147,16 +5147,16 @@ bool ProcessGDBRemote::GetGDBServerRegisterInfoXMLAndProcess(
       XMLNode feature_node = xml_document.GetRootElement("feature");
       if (feature_node) {
         feature_nodes.push_back(feature_node);
-        feature_node.ForEachChildElement([&target_info](
-                                        const XMLNode &node) -> bool {
-          llvm::StringRef name = node.GetName();
-          if (name == "xi:include" || name == "include") {
-            std::string href = node.GetAttributeValue("href");
-            if (!href.empty())
-              target_info.includes.push_back(href);
-            }
-            return true;
-          });
+        feature_node.ForEachChildElement(
+            [&target_info](const XMLNode &node) -> bool {
+              llvm::StringRef name = node.GetName();
+              if (name == "xi:include" || name == "include") {
+                std::string href = node.GetAttributeValue("href");
+                if (!href.empty())
+                  target_info.includes.push_back(href);
+              }
+              return true;
+            });
       }
     }
 
@@ -5187,8 +5187,7 @@ bool ProcessGDBRemote::GetGDBServerRegisterInfoXMLAndProcess(
       }
 
       for (const auto &include : target_info.includes) {
-        GetGDBServerRegisterInfoXMLAndProcess(arch_to_use, include,
-                                              registers);
+        GetGDBServerRegisterInfoXMLAndProcess(arch_to_use, include, registers);
       }
     }
   } else {
@@ -5448,25 +5447,25 @@ llvm::Error ProcessGDBRemote::LoadModules() {
 
   /// See if the dynamic loader knows how to load the modules when requested.
   /// This can get triggered in multiple ways:
-  /// - If a breakpoint in the native process that was set by any GPUActions 
-  ///   gets hit, and the breakpoint hit response from the GPU plug-in via an 
-  ///   instance of GPUPluginBreakpointHitResponse has the "load_libraries" 
+  /// - If a breakpoint in the native process that was set by any GPUActions
+  ///   gets hit, and the breakpoint hit response from the GPU plug-in via an
+  ///   instance of GPUPluginBreakpointHitResponse has the "load_libraries"
   ///   bool member variable is set to true. This is the preferred method if
   ///   it is possible for a breakpoint to be set in the native process as it
   ///   allows the native process to be stopped while GPU shared libraries are
   ///   loaded. The breakpoint will auto resume the process after the GPU
   ///   shared libraries are loaded.
-  /// - Stop reason for a thread in GPU process is set to the 
-  ///   eStopReasonDynammicLoader stop reason. This is used when the GPU process
-  ///   doesn't require synchronization with the native process. If the GPU
-  ///   can't set a breakpoint in GPU code and the GPU driver gets a 
+  /// - Stop reason for a thread in GPU process is set to the
+  ///   eStopReasonDynamicLoader stop reason. This is used when the GPU process
+  ///   eStopReasonDynamicLoaderzation with the native process. If the GPU
+  ///   can't set a breakpoint in GPU code and the GPU driver gets a
   ///   notification that shared libraries are available. This should be used
-  ///   if we want to stop for shared library loading and LLDB should auto 
+  ///   if we want to stop for shared library loading and LLDB should auto
   ///   continue the process. It doesn't do this yet, but it can and will in the
   ///   future if we need this method of shared library load notification.
   /// - The GPU process stop reply packet contains for a GPU thread has the
   ///   "library;" key in the key value pairs.
-  if (m_dyld_up && m_dyld_up->HandleStopReasonDynammicLoader())
+  if (m_dyld_up && m_dyld_up->HandleStopReasonDynamicLoader())
     return llvm::ErrorSuccess();
 
   // request a list of loaded libraries from GDBServer
@@ -6244,10 +6243,9 @@ void ProcessGDBRemote::DidVFork(lldb::pid_t child_pid, lldb::tid_t child_tid) {
   LLDB_LOG(log, "Detaching process {0}", detach_pid);
   Status error = m_gdb_comm.Detach(false, detach_pid);
   if (error.Fail()) {
-      LLDB_LOG(log,
-               "ProcessGDBRemote::DidFork() detach packet send failed: {0}",
-                error.AsCString() ? error.AsCString() : "<unknown error>");
-      return;
+    LLDB_LOG(log, "ProcessGDBRemote::DidFork() detach packet send failed: {0}",
+             error.AsCString() ? error.AsCString() : "<unknown error>");
+    return;
   }
 
   if (GetFollowForkMode() == eFollowChild) {
