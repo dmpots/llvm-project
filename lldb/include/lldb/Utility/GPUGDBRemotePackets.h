@@ -133,7 +133,7 @@ llvm::json::Value toJSON(const GPUPluginConnectionInfo &data);
 /// GPUActions
 ///
 /// A structure used by the native process that is debugging the GPU that
-/// contains actions to be performed after:
+/// contains actions to be performed after the following CPU process events:
 ///
 /// - GPU Initilization in response to the "jGPUPluginInitialize" packet sent to
 ///   the native process' lldb-server that contains GPU plugins. This packet is
@@ -159,6 +159,15 @@ llvm::json::Value toJSON(const GPUPluginConnectionInfo &data);
 ///   If GPUActions are returned from this method, they will be encoded into the
 ///   native process' stop reply packet and handled in ProcessGDBRemote for the
 ///   native process.
+///
+/// GPU plug-ins can also return GPUActions to be performed in the native
+/// process by adding gpu-actions to any GPU stop reply packet. Sometimes the
+/// GPU plug-in might get events from the GPU driver and want to do something in
+/// the native process. The GPU might be running when this happens and the only
+/// thing we can do with the GDB remote protocol is send a stop reply packet.
+/// So we can send a stop reply packet with a "fake" stop reason. When this is
+/// received, the GPU process will stop, handle the GPU actions in the native
+/// process, and then auto resume the GPU process from this "fake" stop.
 ///-----------------------------------------------------------------------------
 struct GPUActions {
   GPUActions() = default;

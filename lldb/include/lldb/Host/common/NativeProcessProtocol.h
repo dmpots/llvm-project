@@ -263,6 +263,32 @@ public:
     return std::nullopt;
   }
 
+  /// Add GPU actions to the next stop reply packet.
+  ///
+  /// This function will get called each time a stop reply packet is being 
+  /// created and allows either the native process or GPU process to add any
+  /// GPUActions to the stop reply packet. 
+  ///
+  /// If the GPUActions are added to the GPU stop reply packet, then these 
+  /// actions will be executed in the CPU process that owns the GPU plug-in and
+  /// the GPU process can auto resume. 
+  ///
+  /// If the GPUActions are added to the CPU stop reply packet, then the actions
+  /// will be performed on the CPU process.
+  ///
+  /// This is currently targeted for GPU processes that can return a "fake" stop 
+  /// reason which allows the GPU to perform GPUActions on the CPU process 
+  /// and then auto resume the GPU process. This can be used if the GPU process
+  /// gets a notification or event from the GPU debug driver that doesn't 
+  /// actually stop the GPU, yet requires interaction with the CPU process, like
+  /// setting a breakpoint in the CPU process.
+  ///
+  virtual std::optional<GPUActions> GetGPUActions() {
+    return std::nullopt;
+  };
+
+
+
   /// Extension flag constants, returned by Manager::GetSupportedExtensions()
   /// and passed to SetEnabledExtension()
   enum class Extension {

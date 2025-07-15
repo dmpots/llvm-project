@@ -885,6 +885,20 @@ bool ProcessGDBRemote::GPUBreakpointHit(void *baton,
 }
 
 Status ProcessGDBRemote::HandleGPUActions(const GPUActions &gpu_action) {
+  // GPUActions need to always be handled by the CPU process. So check if this
+  // process is a GPU process by getting its native target.
+  TargetSP cpu_target_sp = GetTarget().GetNativeTargetForGPU();
+  if (cpu_target_sp) {
+    // This is a GPU process and we need to handle the GPUActions on the CPU
+    // process.
+    ProcessGDBRemote *cpu_process =
+        (ProcessGDBRemote *)cpu_target_sp->GetProcessSP().get();
+    if (cpu_process)
+      return cpu_process->HandleGPUActions(gpu_action);
+    return Status::FromErrorString("failed to get CPU process from GPU process");
+  }
+
+  // This is already the GPU process.
   Status error;
   if (!gpu_action.breakpoints.empty())
     HandleGPUBreakpoints(gpu_action);

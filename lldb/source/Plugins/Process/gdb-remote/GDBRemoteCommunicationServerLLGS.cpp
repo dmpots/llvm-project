@@ -1106,15 +1106,23 @@ void GDBRemoteCommunicationServerLLGS::HandleInferiorState_Stopped(
   Log *log = GetLog(LLDBLog::Process);
   LLDB_LOGF(log, "GDBRemoteCommunicationServerLLGS::%s called", __FUNCTION__);
 
-  // Check if any plug-ins have new connections
+  // Check if any GPU plug-ins have GPUActions to report in a CPU stop reply 
+  // packet.
   StreamGDBRemote extra_stop_reply_args;
   for (auto &plugin_up : m_plugins) {
-    if (std::optional<GPUActions> connection_info =
+    if (std::optional<GPUActions> gpu_actions =
             plugin_up->NativeProcessIsStopping()) {
       extra_stop_reply_args.PutCString("gpu-actions:");
-      extra_stop_reply_args.PutAsJSON(*connection_info, /*hex_ascii=*/true);
+      extra_stop_reply_args.PutAsJSON(*gpu_actions, /*hex_ascii=*/true);
       extra_stop_reply_args.PutChar(';');
     }
+  }
+
+  // Check if the process has any GPUActions to perform. 
+  if (std::optional<GPUActions> gpu_actions = process->GetGPUActions()) {
+    extra_stop_reply_args.PutCString("gpu-actions:");
+    extra_stop_reply_args.PutAsJSON(*gpu_actions, /*hex_ascii=*/true);
+    extra_stop_reply_args.PutChar(';');
   }
 
   PacketResult result = SendStopReasonForState(
