@@ -19,6 +19,7 @@
 
 #include <cinttypes>
 #include <iostream>
+#include <optional>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -33,16 +34,27 @@ ProcessAMDGPU::ProcessAMDGPU(lldb::pid_t pid, NativeDelegate &delegate,
 }
 
 Status ProcessAMDGPU::Resume(const ResumeActionList &resume_actions) {
-  SetState(StateType::eStateRunning, true);
+  Log *log = GetLog(GDBRLog::Plugin);
+  LLDB_LOGF(log, "ProcessAMDGPU::%s() entered", __FUNCTION__);
+
+  if (m_waiting_for_gpu_to_resume_after_setting_cpu_breakpoint) {
+    LLDB_LOGF(log, "ProcessAMDGPU::%s() Resuming after cpu breakpoint was set", __FUNCTION__);
+    m_waiting_for_gpu_to_resume_after_setting_cpu_breakpoint = false;
+    // TODO: notify the waiting thread that the breakpoint has been set
+  }
+
   ThreadAMDGPU *thread = (ThreadAMDGPU *)GetCurrentThread();
   thread->GetRegisterContext().InvalidateAllRegisters();
-  // if (!m_debugger->resume_process()) {
-  //   return Status::FromErrorString("resume_process failed");
-  // }
+
+  SetState(StateType::eStateRunning, true);
+
   return Status();
 }
 
 Status ProcessAMDGPU::Halt() {
+  Log *log = GetLog(GDBRLog::Plugin);
+  LLDB_LOGF(log, "ProcessAMDGPU::%s() entered", __FUNCTION__);
+
   SetState(StateType::eStateStopped, true);
   return Status();
 }
@@ -235,6 +247,29 @@ ProcessAMDGPU::GetGPUDynamicLoaderLibraryInfos(
   }
 
   return response;
+}
+
+std::optional<GPUActions> ProcessAMDGPU::GetGPUActions() {
+  if (m_request_cpu_breakpoint.has_value()) {
+    LLDB_LOGF(GetLog(GDBRLog::Plugin),
+      "ProcessAMDGPU::%s() requesting breakpoint '%s' at address %" PRIx64,
+              __FUNCTION__,
+              m_request_cpu_breakpoint->identifier.c_str(),
+              m_request_cpu_breakpoint->addr_info.value_or(GPUBreakpointByAddress{0}).load_address);
+
+
+    // Return an action to set the breakpoint.
+    GPUActions actions;
+    actions.plugin_name = m_debugger->GetPluginName();
+    actions.breakpoints.emplace_back(std::move(*m_request_cpu_breakpoint));
+
+    m_request_cpu_breakpoint = std::nullopt;
+    m_waiting_for_gpu_to_resume_after_setting_cpu_breakpoint = true;
+
+    return actions;
+  }
+
+  return std::nullopt;
 }
 
 llvm::Expected<std::unique_ptr<NativeProcessProtocol>>
@@ -512,4 +547,47 @@ void ProcessAMDGPU::AddThread(amd_dbgapi_wave_id_t wave_id) {
   auto thread = std::make_unique<ThreadAMDGPU>(*this, wave_id.handle, wave_id);
   thread->SetStopReason(lldb::eStopReasonBreakpoint);
   m_threads.emplace_back(std::move(thread));
+}
+
+bool ProcessAMDGPU::SetCpuBreakpoint(llvm::StringRef name, lldb::addr_t addr) {
+  Log *log = GetLog(GDBRLog::Plugin);
+  LLDB_LOGF(log, "ProcessAMDGPU::%s() entered", __FUNCTION__);
+
+  if (m_request_cpu_breakpoint.has_value()) {
+    LLDB_LOGF(log,
+    "Failed to request cpu breakpoint to be set. Found pending cpu breakpoint: %s",
+              m_request_cpu_breakpoint.value().identifier.c_str());
+    return false;
+  }
+  GPUBreakpointByAddress bp_addr;
+  bp_addr.load_address = addr;
+
+  GPUBreakpointInfo bp;
+  bp.identifier = name;
+  bp.addr_info.emplace(bp_addr);
+  m_request_cpu_breakpoint = std::move(bp);
+  RequestFakeStop();
+
+  // TODO: wait for the breakpoint to be hit
+  return true;
+}
+
+void ProcessAMDGPU::RequestStop(lldb::StopReason reason) {
+  ThreadAMDGPU *thread = (ThreadAMDGPU *)GetCurrentThread();
+  thread->SetStopReason(reason);
+  Halt();
+}
+
+void ProcessAMDGPU::RequestDynamicLoaderStop() {
+  Log *log = GetLog(GDBRLog::Plugin);
+  LLDB_LOGF(log, "ProcessAMDGPU::%s() entered", __FUNCTION__);
+
+  RequestStop(lldb::eStopReasonDynamicLoader);
+}
+
+void ProcessAMDGPU::RequestFakeStop() {
+  Log *log = GetLog(GDBRLog::Plugin);
+  LLDB_LOGF(log, "ProcessAMDGPU::%s() entered", __FUNCTION__);
+
+  RequestStop(lldb::eStopReasonDynamicLoader);
 }
