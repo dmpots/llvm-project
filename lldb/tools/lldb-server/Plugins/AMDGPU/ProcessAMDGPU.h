@@ -12,6 +12,8 @@
 #include "lldb/Host/common/NativeProcessProtocol.h"
 #include "lldb/Utility/ProcessInfo.h"
 #include <amd-dbgapi/amd-dbgapi.h>
+#include <condition_variable>
+#include <mutex>
 
 namespace lldb_private {
 namespace lldb_server {
@@ -130,7 +132,12 @@ public:
   State m_gpu_state = State::Initializing;
   std::vector<amd_dbgapi_wave_id_t> m_wave_ids;
   std::optional<GPUBreakpointInfo> m_request_cpu_breakpoint;
-  bool m_waiting_for_gpu_to_resume_after_setting_cpu_breakpoint = false;
+  std::mutex m_gpu_actions_mutex; // Used to wait for GPU actions to complete.
+  std::condition_variable m_gpu_actions_cv;
+  GPUActions m_gpu_actions;
+  int m_gpu_actions_pending = 0;
+  int m_gpu_actions_sent = 0;
+  int m_gpu_actions_handled = 0;
 };
 
 class ProcessManagerAMDGPU : public NativeProcessProtocol::Manager {

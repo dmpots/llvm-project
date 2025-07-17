@@ -19,6 +19,7 @@
 
 #include <cinttypes>
 #include <iostream>
+#include <mutex>
 #include <optional>
 
 using namespace lldb;
@@ -37,10 +38,17 @@ Status ProcessAMDGPU::Resume(const ResumeActionList &resume_actions) {
   Log *log = GetLog(GDBRLog::Plugin);
   LLDB_LOGF(log, "ProcessAMDGPU::%s() entered", __FUNCTION__);
 
-  if (m_waiting_for_gpu_to_resume_after_setting_cpu_breakpoint) {
-    LLDB_LOGF(log, "ProcessAMDGPU::%s() Resuming after cpu breakpoint was set", __FUNCTION__);
-    m_waiting_for_gpu_to_resume_after_setting_cpu_breakpoint = false;
-    // TODO: notify the waiting thread that the breakpoint has been set
+  // Handle GPU actions bookkeeping for actions that were sent with the last stop.
+  {
+    std::lock_guard<std::mutex> lock(m_gpu_actions_mutex);
+    if (m_gpu_actions_pending) {
+      assert(m_gpu_actions_pending > 0);
+      --m_gpu_actions_pending;
+      ++m_gpu_actions_handled;
+      m_gpu_actions_cv.notify_all();
+      LLDB_LOGF(log, "ProcessAMDGPU::%s() Resuming after gpu actions were handled. "
+                "GPUActions: Sent=%d, Handled=%d, Pending=%d", __FUNCTION__, m_gpu_actions_sent, m_gpu_actions_handled, m_gpu_actions_pending);
+    }
   }
 
   ThreadAMDGPU *thread = (ThreadAMDGPU *)GetCurrentThread();
@@ -250,21 +258,27 @@ ProcessAMDGPU::GetGPUDynamicLoaderLibraryInfos(
 }
 
 std::optional<GPUActions> ProcessAMDGPU::GetGPUActions() {
-  if (m_request_cpu_breakpoint.has_value()) {
-    LLDB_LOGF(GetLog(GDBRLog::Plugin),
-      "ProcessAMDGPU::%s() requesting breakpoint '%s' at address %" PRIx64,
-              __FUNCTION__,
-              m_request_cpu_breakpoint->identifier.c_str(),
-              m_request_cpu_breakpoint->addr_info.value_or(GPUBreakpointByAddress{0}).load_address);
+  std::lock_guard<std::mutex> lock(m_gpu_actions_mutex);
+
+  if (m_request_cpu_breakpoint) {
+    ++m_gpu_actions_sent;
+    ++m_gpu_actions_pending;
+
+    Log *log = GetLog(GDBRLog::Plugin);
+    LLDB_LOGF(log,
+    "ProcessAMDGPU::%s() set breakpoint '%s' at address %" PRIx64 ". "
+            "GPUActions: Sent=%d, Handled=%d, Pending=%d",
+            __FUNCTION__,
+            m_request_cpu_breakpoint->identifier.c_str(),
+            m_request_cpu_breakpoint->addr_info.value_or(GPUBreakpointByAddress{0}).load_address,
+            m_gpu_actions_sent, m_gpu_actions_handled, m_gpu_actions_pending);
 
 
     // Return an action to set the breakpoint.
     GPUActions actions;
     actions.plugin_name = m_debugger->GetPluginName();
     actions.breakpoints.emplace_back(std::move(*m_request_cpu_breakpoint));
-
     m_request_cpu_breakpoint = std::nullopt;
-    m_waiting_for_gpu_to_resume_after_setting_cpu_breakpoint = true;
 
     return actions;
   }
@@ -553,22 +567,39 @@ bool ProcessAMDGPU::SetCpuBreakpoint(llvm::StringRef name, lldb::addr_t addr) {
   Log *log = GetLog(GDBRLog::Plugin);
   LLDB_LOGF(log, "ProcessAMDGPU::%s() entered", __FUNCTION__);
 
-  if (m_request_cpu_breakpoint.has_value()) {
-    LLDB_LOGF(log,
-    "Failed to request cpu breakpoint to be set. Found pending cpu breakpoint: %s",
-              m_request_cpu_breakpoint.value().identifier.c_str());
-    return false;
-  }
-  GPUBreakpointByAddress bp_addr;
-  bp_addr.load_address = addr;
+  int sent = -1;
+  {
+    std::unique_lock<std::mutex> lock(m_gpu_actions_mutex);
 
-  GPUBreakpointInfo bp;
-  bp.identifier = name;
-  bp.addr_info.emplace(bp_addr);
-  m_request_cpu_breakpoint = std::move(bp);
+    if (m_request_cpu_breakpoint.has_value()) {
+      LLDB_LOGF(log,
+      "Failed to request cpu breakpoint to be set. Found pending cpu breakpoint: %s",
+                m_request_cpu_breakpoint.value().identifier.c_str());
+      return false;
+    }
+
+    GPUBreakpointByAddress bp_addr;
+    bp_addr.load_address = addr;
+
+    GPUBreakpointInfo bp;
+    bp.identifier = name;
+    bp.addr_info.emplace(bp_addr);
+    m_request_cpu_breakpoint = std::move(bp);
+
+    sent = m_gpu_actions_sent;
+  }
+
   RequestFakeStop();
 
-  // TODO: wait for the breakpoint to be hit
+  {
+    LLDB_LOGF(log, "ProcessAMDGPU::%s() Waiting for GPUActions to complete. "
+              "GPUActions: Sent=%d, Handled=%d, Pending=%d", __FUNCTION__, m_gpu_actions_sent, m_gpu_actions_handled, m_gpu_actions_pending);
+    std::unique_lock<std::mutex> lock(m_gpu_actions_mutex);
+    m_gpu_actions_cv.wait(lock, [sent,  this]{
+      return m_gpu_actions_sent > sent && m_gpu_actions_handled > sent;
+    });
+  }
+
   return true;
 }
 
