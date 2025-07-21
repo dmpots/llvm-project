@@ -52,21 +52,50 @@ static amd_dbgapi_status_t amd_dbgapi_client_process_get_info_callback(
   return AMD_DBGAPI_STATUS_SUCCESS;
 }
 
+// Internal name used to identify the gpu loader breakpoint.
+// We match this name in the GPUBreakpointInfo passed into the
+// `BreakpointWasHit` callback to identify which breakpoint was hit.
+static const char *kGpuLoaderBreakpointIdentifier = "GPU loader breakpoint";
+
+// Set the internal gpu breakpoint by symbol name instead of using the address
+// passed into the `insert_breakpoint` callback. The ROCdbgapi library
+// uses the `amd_dbgapi_insert_breakpoint_callback` to communicate the address
+// where the breakpoint should be set to catch all changes to the loaded code
+// objects (e.g. when a new kernel is loaded). The callback is triggered during
+// the processing of the call to the `amd_dbgapi_process_next_pending_event`
+// that handles the AMD_DBGAPI_EVENT_KIND_RUNTIME event type when the runtime
+// is first loaded. Instead of trying to set the breakpoint on demand at a
+// time when the cpu is running, it is easier to set the breakpoint when we
+// create the connection to a known symbol name. Otherwise, we have to halt the
+// cpu process which shows a public stop to the user. See PR for more discussion
+// on the issues and alternatives:
+// https://github.com/clayborg/llvm-project/pull/20
+static const char *kSetDbgApiBreakpointByName =
+    "_ZN4rocr19_loader_debug_stateEv"; // rocr::_loader_debug_state
+
 static amd_dbgapi_status_t amd_dbgapi_insert_breakpoint_callback(
     amd_dbgapi_client_process_id_t client_process_id,
     amd_dbgapi_global_address_t address,
     amd_dbgapi_breakpoint_id_t breakpoint_id) {
-  LLDB_LOGF(GetLog(GDBRLog::Plugin),
-            "insert_breakpoint callback at address: 0x%" PRIx64, address);
+  Log *log = GetLog(GDBRLog::Plugin);
+  LLDB_LOGF(log, "insert_breakpoint callback at address: 0x%" PRIx64, address);
+
   LLDBServerPluginAMDGPU *debugger =
       reinterpret_cast<LLDBServerPluginAMDGPU *>(client_process_id);
-  debugger->GetNativeProcess()->Halt();
-  LLDB_LOGF(GetLog(GDBRLog::Plugin), "insert_breakpoint callback success");
   LLDBServerPluginAMDGPU::GPUInternalBreakpoinInfo bp_info;
   bp_info.addr = address;
   bp_info.breakpoind_id = breakpoint_id;
   debugger->m_gpu_internal_bp.emplace(std::move(bp_info));
-  debugger->m_wait_for_gpu_internal_bp_stop = true;
+
+  if (kSetDbgApiBreakpointByName) {
+    LLDB_LOGF(log,
+              "ignoring breakpoint address 0x%" PRIx64
+              " and using name '%s' instead",
+              address, kSetDbgApiBreakpointByName);
+  } else {
+    debugger->GetNativeProcess()->Halt();
+    debugger->m_wait_for_gpu_internal_bp_stop = true;
+  }
   return AMD_DBGAPI_STATUS_SUCCESS;
 }
 
@@ -392,6 +421,7 @@ std::optional<GPUActions> LLDBServerPluginAMDGPU::NativeProcessIsStopping() {
     if (m_wait_for_gpu_internal_bp_stop && m_gpu_internal_bp.has_value()) {
       LLDB_LOGF(GetLog(GDBRLog::Plugin), "Please set gpu breakpoint at 0x%p",
                 (void *)m_gpu_internal_bp->addr);
+      assert(!kSetDbgApiBreakpointByName);
       GPUActions actions;
       actions.plugin_name = GetPluginName();
 
@@ -399,7 +429,7 @@ std::optional<GPUActions> LLDBServerPluginAMDGPU::NativeProcessIsStopping() {
       bp_addr.load_address = m_gpu_internal_bp->addr;
 
       GPUBreakpointInfo bp;
-      bp.identifier = "GPU loader breakpoint";
+      bp.identifier = kGpuLoaderBreakpointIdentifier;
       bp.addr_info.emplace(bp_addr);
 
       std::vector<GPUBreakpointInfo> breakpoints;
@@ -415,8 +445,8 @@ std::optional<GPUActions> LLDBServerPluginAMDGPU::NativeProcessIsStopping() {
 
 bool LLDBServerPluginAMDGPU::HandleGPUInternalBreakpointHit(
     const GPUInternalBreakpoinInfo &bp, bool &has_new_libraries) {
-  LLDB_LOGF(GetLog(GDBRLog::Plugin),
-            "Hit GPU loader breakpoint at address: 0x%" PRIx64, bp.addr);
+  LLDB_LOGF(GetLog(GDBRLog::Plugin), "Hit %s at address: 0x%" PRIx64,
+            kGpuLoaderBreakpointIdentifier, bp.addr);
   has_new_libraries = false;
   amd_dbgapi_breakpoint_id_t breakpoint_id{bp.breakpoind_id};
   amd_dbgapi_breakpoint_action_t action;
@@ -564,7 +594,21 @@ LLDBServerPluginAMDGPU::BreakpointWasHit(GPUPluginBreakpointHitArgs &args) {
 
   GPUPluginBreakpointHitResponse response;
   response.actions.plugin_name = GetPluginName();
-  if (bp_identifier == "GPU loader breakpoint") {
+  if (bp_identifier == kGpuLoaderBreakpointIdentifier) {
+    // Make sure the breakpoint address matches the expected value when we set
+    // it by name.
+    if (kSetDbgApiBreakpointByName &&
+        args.symbol_values[0].value != m_gpu_internal_bp->addr) {
+      LLDB_LOGF(
+          log,
+          "Breakpoint %s (0x%" PRIx64
+          ") does not match expected breakpoint address value: 0x%" PRIx64,
+          args.breakpoint.symbol_names[0].c_str(),
+          args.symbol_values[0].value.value_or(0), m_gpu_internal_bp->addr);
+
+      return llvm::createStringError(
+          "Breakpoint address does not match expected value from ROCdbgapi");
+    }
     bool has_new_libraries = false;
     bool success = HandleGPUInternalBreakpointHit(m_gpu_internal_bp.value(),
                                                   has_new_libraries);
@@ -583,6 +627,17 @@ LLDBServerPluginAMDGPU::BreakpointWasHit(GPUPluginBreakpointHitArgs &args) {
 GPUActions LLDBServerPluginAMDGPU::GetInitializeActions() {
   GPUActions init_actions;
   init_actions.plugin_name = GetPluginName();
+
+  if (kSetDbgApiBreakpointByName) {
+    GPUBreakpointByName bp_name;
+    bp_name.function_name = kSetDbgApiBreakpointByName;
+
+    GPUBreakpointInfo bp;
+    bp.identifier = kGpuLoaderBreakpointIdentifier;
+    bp.name_info = std::move(bp_name);
+    bp.symbol_names = {kSetDbgApiBreakpointByName};
+    init_actions.breakpoints.emplace_back(std::move(bp));
+  }
 
   return init_actions;
 }
