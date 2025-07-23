@@ -91,7 +91,8 @@ bool fromJSON(const llvm::json::Value &value, GPUPluginConnectionInfo &data,
   return o && o.mapOptional("exe_path", data.exe_path) &&
          o.mapOptional("platform_name", data.platform_name) &&
          o.mapOptional("triple", data.triple) &&
-         o.map("connect_url", data.connect_url);
+         o.map("connect_url", data.connect_url) &&
+         o.map("synchronous", data.synchronous);
 }
 
 llvm::json::Value toJSON(const GPUPluginConnectionInfo &data) {
@@ -100,6 +101,7 @@ llvm::json::Value toJSON(const GPUPluginConnectionInfo &data) {
       {"platform_name", data.platform_name},
       {"triple", data.triple},
       {"connect_url", data.connect_url},
+      {"synchronous", data.synchronous},
   });
 }
 
