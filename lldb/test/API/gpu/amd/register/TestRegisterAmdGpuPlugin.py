@@ -2,7 +2,6 @@
 Register tests for the AMDGPU plugin.
 """
 
-
 import lldb
 from amdgpu_testcase import AmdGpuTestCaseBase
 import lldbsuite.test.lldbutil as lldbutil
@@ -10,7 +9,7 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 
 # Expected size of a wavefront in threads.
-WAVE_SIZE=64
+WAVE_SIZE = 64
 
 # These values should match the ones written to the registers in the test program.
 # You can use `gen.py` in this directory to regenerate this list if needed.
@@ -635,6 +634,7 @@ AGPR_VALUES = [
     0x532401FC,
 ]
 
+
 class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
     def run_to_reg_gpu_breakpoint(self, reg_base):
         source = "reg.hip"
@@ -657,12 +657,12 @@ class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
 
     def do_reg_read_write_tests(self, reg_base, known_values):
         """Verify we can read and write the values to registers.
-           Values in `known_values` will be written to increasingly
-           numbered gprs (e.g v0, v1, ...)."""
+        Values in `known_values` will be written to increasingly
+        numbered gprs (e.g v0, v1, ...)."""
         self.build()
         self.run_to_reg_gpu_breakpoint(reg_base)
 
-        for i,value in enumerate(known_values):
+        for i, value in enumerate(known_values):
             reg = f"{reg_base}{i}"
 
             # First read the register and verify the expected value.
@@ -710,7 +710,7 @@ class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
 
     def get_reg_value_str(self, gpr, value):
         """Return the string representation used by lldb for the value in the register.
-           Expands the value to the correct width if needed for vector registers.
+        Expands the value to the correct width if needed for vector registers.
         """
         if self.is_vector_reg(gpr):
             value = self.expand_vector_reg_list(value)
@@ -720,11 +720,11 @@ class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
 
     def expand_vector_reg_list(self, value, fill=None):
         """Expand the values to a full wave of values.
-            If the value is a scalar, then splat the remaining lanes with the value unless
-            a fill value is provided.
+        If the value is a scalar, then splat the remaining lanes with the value unless
+        a fill value is provided.
 
-            If the value is a list, then splat the remaining lanes with the fill value or
-            0 if no fill value is provided.
+        If the value is a list, then splat the remaining lanes with the fill value or
+        0 if no fill value is provided.
         """
         if not isinstance(value, list):
             value = [value]
@@ -739,12 +739,12 @@ class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
 
         # Generate the missing values for each lane in the vector register.
         lane_values = [fill] * WAVE_SIZE
-        for i,lane in enumerate(value):
+        for i, lane in enumerate(value):
             lane_values[i] = lane
         return lane_values
 
     def get_vector_reg_str(self, lanes):
-        """Return the string representation used for a vector register class. """
+        """Return the string representation used for a vector register class."""
         self.assertTrue(isinstance(lanes, list), "lanes must be a list")
         self.assertTrue(len(lanes) == WAVE_SIZE, "lanes must be WAVE_SIZE long")
         reg_value = "{"

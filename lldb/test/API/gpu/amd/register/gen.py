@@ -36,7 +36,7 @@ def generate_gpr_asm(reg_classes: RegClassesList) -> str:
             : : : "v0", "v1");
     """
     asm_lines = []
-    regs = dict() # Use dict to get an ordered set of registers.
+    regs = dict()  # Use dict to get an ordered set of registers.
     for rc, values in reg_classes:
         for i in range(len(values)):
             reg = f"{rc.gpr}{i}"
@@ -53,19 +53,21 @@ def generate_gpr_asm(reg_classes: RegClassesList) -> str:
     lines = ["asm volatile("] + asm_lines + ["  : : : " + ", ".join(clobbers) + ");"]
     return "\n".join(lines)
 
-def generate_kernel(reg_class: RegClass, values : GprValuesList) -> str:
+
+def generate_kernel(reg_class: RegClass, values: GprValuesList) -> str:
     """Generate a hip kernels to set register in a class to expected values."""
     gpr = f"{reg_class.gpr}gpr"
     kernel = f"set_known_{gpr}_values_kernel"
     asm = generate_gpr_asm([(reg_class, values)])
 
     outs = StringIO()
-    print(f"__global__ void {kernel}() {{",file=outs)
+    print(f"__global__ void {kernel}() {{", file=outs)
     print(asm, file=outs)
     print(f"  // GPU BREAKPOINT - {gpr.upper()}", file=outs)
     print("}", file=outs)
 
     return outs.getvalue()
+
 
 def generate_kernels() -> str:
     """Generate a string containing hip kernels to set registers to expected values."""
@@ -73,6 +75,7 @@ def generate_kernels() -> str:
     for reg_class, values in reg_classes:
         kernels.append(generate_kernel(reg_class, values))
     return "\n".join(kernels)
+
 
 def generate_expected_values(reg_classes: RegClassesList) -> str:
     """Generate a string containing python lists of expected values."""
@@ -92,7 +95,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate GPR values and assembly.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--asm", action="store_true", help="Generate only inline assembly")
+    parser.add_argument(
+        "--asm", action="store_true", help="Generate only inline assembly"
+    )
     parser.add_argument("--kernels", action="store_true", help="Generate kernels")
     parser.add_argument(
         "--values", action="store_true", help="Generate python expected values"
