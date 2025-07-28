@@ -36,13 +36,20 @@ def generate_gpr_asm(reg_classes: RegClassesList) -> str:
             : : : "v0", "v1");
     """
     asm_lines = []
-    regs = []
+    regs = dict() # Use dict to get an ordered set of registers.
     for rc, values in reg_classes:
         for i in range(len(values)):
             reg = f"{rc.gpr}{i}"
-            regs.append(reg)
-            asm_lines.append(f'  "{rc.mov} {reg:>4}, 0x{values[i]:08X}\\n"')
-    clobbers = [f'"{reg}"' for reg in regs]
+            if rc.gpr == "a":
+                # The agpr registers cannot be initialized with an immediate value
+                # so move it to a vgpr first.
+                regs.setdefault("v0")
+                asm_lines.append(f'  "v_mov_b32             v0, 0x{values[i]:08X}\\n"')
+                asm_lines.append(f'  "{rc.mov} {reg:>4}, v0\\n"')
+            else:
+                asm_lines.append(f'  "{rc.mov} {reg:>4}, 0x{values[i]:08X}\\n"')
+            regs.setdefault(reg)
+    clobbers = [f'"{reg}"' for reg in regs.keys()]
     lines = ["asm volatile("] + asm_lines + ["  : : : " + ", ".join(clobbers) + ");"]
     return "\n".join(lines)
 
@@ -55,7 +62,7 @@ def generate_kernel(reg_class: RegClass, values : GprValuesList) -> str:
     outs = StringIO()
     print(f"__global__ void {kernel}() {{",file=outs)
     print(asm, file=outs)
-    print(f"  // GPU {gpr.upper()} BREAKPOINT", file=outs)
+    print(f"  // GPU BREAKPOINT - {gpr.upper()}", file=outs)
     print("}", file=outs)
 
     return outs.getvalue()
@@ -95,9 +102,11 @@ if __name__ == "__main__":
     random.seed(args.seed)
     vgpr_values = generate_gpr_values(256)
     sgpr_values = generate_gpr_values(102)
+    agpr_values = generate_gpr_values(256)
     reg_classes = [
         (RegClass("v", "v_mov_b32"), vgpr_values),
         (RegClass("s", "s_mov_b32"), sgpr_values),
+        (RegClass("a", "v_accvgpr_write_b32"), agpr_values),
     ]
     if args.asm:
         asm = generate_gpr_asm(reg_classes)
