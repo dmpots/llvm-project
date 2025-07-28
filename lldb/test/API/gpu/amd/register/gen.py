@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # This is a helper script to generate data for the register tests.
-# It generates two things:
+# It generates
 #
 #   1. Python lists of expected values.
-#   2. The inline assembly to write the values to registers.
+#   2. The kernels with inline assembly to write those values to registers.
 #
-# The python lists will be included in the python test file and the inline
-# assembly will be included in the hip file.
+# The python lists will be included in the python test file and the kernels
+# will be included in the hip file.
 import random
 from collections import namedtuple
 from typing import List, Tuple, TypeAlias
@@ -15,7 +15,8 @@ from io import StringIO
 
 RegClass = namedtuple("RegClass", ["gpr", "mov"])
 GprValuesList: TypeAlias = List[int]
-RegClassesList: TypeAlias = List[Tuple[RegClass, GprValuesList]]
+RegClassData: TypeAlias = Tuple[RegClass, GprValuesList]
+RegClassesList: TypeAlias = List[RegClassData]
 
 
 def generate_gpr_values(count) -> GprValuesList:
@@ -42,12 +43,32 @@ def generate_gpr_asm(reg_classes: RegClassesList) -> str:
             regs.append(reg)
             asm_lines.append(f'  "{rc.mov} {reg:>4}, 0x{values[i]:08X}\\n"')
     clobbers = [f'"{reg}"' for reg in regs]
-    lines = ["asm volatile("] + asm_lines + [": : : " + ", ".join(clobbers) + ");"]
+    lines = ["asm volatile("] + asm_lines + ["  : : : " + ", ".join(clobbers) + ");"]
     return "\n".join(lines)
 
+def generate_kernel(reg_class: RegClass, values : GprValuesList) -> str:
+    """Generate a hip kernels to set register in a class to expected values."""
+    gpr = f"{reg_class.gpr}gpr"
+    kernel = f"set_known_{gpr}_values_kernel"
+    asm = generate_gpr_asm([(reg_class, values)])
+
+    outs = StringIO()
+    print(f"__global__ void {kernel}() {{",file=outs)
+    print(asm, file=outs)
+    print(f"  // GPU {gpr.upper()} BREAKPOINT", file=outs)
+    print("}", file=outs)
+
+    return outs.getvalue()
+
+def generate_kernels() -> str:
+    """Generate a string containing hip kernels to set registers to expected values."""
+    kernels = []
+    for reg_class, values in reg_classes:
+        kernels.append(generate_kernel(reg_class, values))
+    return "\n".join(kernels)
 
 def generate_expected_values(reg_classes: RegClassesList) -> str:
-    """Generate a string containting python lists of expected values."""
+    """Generate a string containing python lists of expected values."""
     outs = StringIO()
     expected_values = []
     for reg_class, values in reg_classes:
@@ -64,7 +85,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate GPR values and assembly.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--asm", action="store_true", help="Generate inline assembly")
+    parser.add_argument("--asm", action="store_true", help="Generate only inline assembly")
+    parser.add_argument("--kernels", action="store_true", help="Generate kernels")
     parser.add_argument(
         "--values", action="store_true", help="Generate python expected values"
     )
@@ -80,6 +102,10 @@ if __name__ == "__main__":
     if args.asm:
         asm = generate_gpr_asm(reg_classes)
         print(asm)
+
+    if args.kernels:
+        kernels = generate_kernels()
+        print(kernels)
 
     if args.values:
         python = generate_expected_values(reg_classes)

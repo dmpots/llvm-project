@@ -377,29 +377,28 @@ SGPR_VALUES = [
 ]
 
 class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
-    def run_to_reg_gpu_breakpoint(self):
+    def run_to_reg_gpu_breakpoint(self, reg_base):
         source = "reg.hip"
+        gpr = f"{reg_base.upper()}GPR"
         gpu_threads = self.run_to_gpu_breakpoint(
-            source, "// GPU BREAKPOINT", "// CPU BREAKPOINT - BEFORE LAUNCH"
+            source, f"// GPU {gpr} BREAKPOINT", "// CPU BREAKPOINT - BEFORE LAUNCH"
         )
         self.assertNotEqual(None, gpu_threads, "GPU should be stopped at breakpoint")
         self.select_gpu()
 
-    def test_grp_read_write(self):
-        """Test that we can read and write registers.
-        The registers are initialized to known values by the test program.
-        We validate that each register has the expected value and that
-        we can write new values to the register."""
-        self.build()
-        self.run_to_reg_gpu_breakpoint()
-
+    def test_vgrp_read_write(self):
         self.do_reg_read_write_tests("v", VGPR_VALUES)
+
+    def test_sgrp_read_write(self):
         self.do_reg_read_write_tests("s", SGPR_VALUES)
 
     def do_reg_read_write_tests(self, reg_base, known_values):
         """Verify we can read and write the values to registers.
            Values in `known_values` will be written to increasingly
            numbered gprs (e.g v0, v1, ...)."""
+        self.build()
+        self.run_to_reg_gpu_breakpoint(reg_base)
+
         for i,value in enumerate(known_values):
             reg = f"{reg_base}{i}"
 
@@ -415,13 +414,13 @@ class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
 
     def test_vector_lane_read_write(self):
         self.build()
-        self.run_to_reg_gpu_breakpoint()
+        self.run_to_reg_gpu_breakpoint("v")
 
         # First check that the register is initialized to the expected value.
         vgpr = [VGPR_VALUES[0]] * WAVE_SIZE
         self.reg_read("v0", vgpr)
 
-        # First check that the register is initialized to the expected value.
+        # Make sure we can modify only a few lanes of the register.
         vgpr[1] = 0x10101010
         vgpr[2] = 0x20202020
         vgpr[4] = 0x40404040
