@@ -31,7 +31,7 @@ class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
     def test_sgrp_read_write(self):
         self.do_reg_read_write_test("s", NUM_SCALAR_REGISTERS)
 
-    @expectedFailureAll("Read/Write of AGPR registers is working yet")
+    @expectedFailureAll("Read of initial AGPR register valuee is working yet")
     def test_agrp_read_write(self):
         self.do_reg_read_write_test("a", NUM_ACCUM_REGISTERS)
 
@@ -97,15 +97,15 @@ class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
         reg_value_str = f"{gpr} = " + self.get_reg_value_str(gpr, expected)
         self.expect(f"register read {gpr}", substrs=[reg_value_str])
 
-    def reg_write(self, gpr, value):
-        """Write a value to a register."""
-        reg_value = self.get_reg_value_str(gpr, value)
-        self.runCmd(f'register write {gpr} "{reg_value}"')
-
     def verify_reg_write(self, gpr, value):
         """Write the value to a register and verify we read back the same value."""
         self.reg_write(gpr, value)
         self.verify_reg_read(gpr, value)
+
+    def reg_write(self, gpr, value):
+        """Write a value to a register."""
+        reg_value = self.get_reg_value_str(gpr, value)
+        self.runCmd(f'register write {gpr} "{reg_value}"')
 
     def is_vector_reg(self, gpr):
         """Return true if the register is a vector register."""
