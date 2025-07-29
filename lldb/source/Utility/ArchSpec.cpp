@@ -828,6 +828,16 @@ std::string ArchSpec::GetClangTargetCPU() const {
 
   if (GetTriple().isARM())
     cpu = llvm::ARM::getARMCPUForArch(GetTriple(), "").str();
+
+  if (GetTriple().isAMDGPU()) {
+    switch (m_core) {
+      case ArchSpec::eCore_amd_gpu_gcn_GFX942:
+        cpu = "gfx942";
+        break;
+      default:
+        break;
+    }
+  }
   return cpu;
 }
 
@@ -848,6 +858,30 @@ uint32_t ArchSpec::GetMachOCPUSubType() const {
   if (core_def) {
     const ArchDefinitionEntry *arch_def =
         FindArchDefinitionEntry(&g_macho_arch_def, core_def->core);
+    if (arch_def) {
+      return arch_def->sub;
+    }
+  }
+  return LLDB_INVALID_CPUTYPE;
+}
+
+uint32_t ArchSpec::GetAMDGPUCPUType() const {
+  const CoreDefinition *core_def = FindCoreDefinition(m_core);
+  if (core_def) {
+    const ArchDefinitionEntry *arch_def =
+        FindArchDefinitionEntry(&g_elf_arch_def, core_def->core);
+    if (arch_def) {
+      return arch_def->cpu;
+    }
+  }
+  return LLDB_INVALID_CPUTYPE;
+}
+
+uint32_t ArchSpec::GetAMDGPUCPUSubType() const {
+  const CoreDefinition *core_def = FindCoreDefinition(m_core);
+  if (core_def) {
+    const ArchDefinitionEntry *arch_def =
+        FindArchDefinitionEntry(&g_elf_arch_def, core_def->core);
     if (arch_def) {
       return arch_def->sub;
     }
