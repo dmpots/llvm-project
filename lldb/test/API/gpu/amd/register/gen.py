@@ -18,10 +18,12 @@ GprValuesList: TypeAlias = List[int]
 RegClassData: TypeAlias = Tuple[RegClass, GprValuesList]
 RegClassesList: TypeAlias = List[RegClassData]
 
+
 def replicate_byte(value):
     """Replicate the byte across the 4 bytes of a 32-bit value."""
     value = value & 0xFF
     return (value << 24) | (value << 16) | (value << 8) | value
+
 
 def generate_gpr_values(count) -> GprValuesList:
     """Generate a list of random 32-bit integer values."""

@@ -11,8 +11,9 @@ from lldbsuite.test.decorators import *
 # Expected size of a wavefront in threads.
 WAVE_SIZE = 64
 NUM_VECTOR_REGISTERS = 256
-NUM_ACCUM_REGISTERS  = NUM_VECTOR_REGISTERS
+NUM_ACCUM_REGISTERS = NUM_VECTOR_REGISTERS
 NUM_SCALAR_REGISTERS = 102
+
 
 class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
     def run_to_reg_gpu_breakpoint(self, reg_base):
