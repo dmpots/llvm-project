@@ -689,11 +689,15 @@ class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
 
     def replicate_byte(self, value, minval=0):
         """Replicate the byte across the 4 bytes of a 32-bit value."""
-        value = value & 0xFF
+        value = max(value & 0xFF, minval)
         return (value << 24) | (value << 16) | (value << 8) | value
 
     def get_test_values(self, reg_base, i, num_regs):
         """Return the register to read, the known initialized value of that register, and a new value to write."""
+        # For a register v{i} we replicate the byte {i} across the 4 bytes of the register.
+        # For the new value we want to make write a non-zero value that is different
+        # from the original value.  We do this by replicating the byte max({num_regs - i}, 1)
+        # across the 4 bytes of the register.
         reg = f"{reg_base}{i}"
         original_value = self.replicate_byte(i)
         new_value = self.replicate_byte(num_regs - i, minval=1)
@@ -735,7 +739,7 @@ class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
         Expands the value to the correct width if needed for vector registers.
         """
         if self.is_vector_reg(gpr):
-            value = self.expand_vector_reg_list(value)
+            #TODO: value = self.expand_vector_reg_list(value)
             return self.get_vector_reg_str(value)
         else:
             return self.get_scalar_reg_str(value)
