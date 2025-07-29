@@ -10,7 +10,8 @@ from lldbsuite.test.decorators import *
 
 # Expected size of a wavefront in threads.
 WAVE_SIZE = 64
-NUM_VECTOR_REGISTERS = 255
+NUM_VECTOR_REGISTERS = 256
+NUM_ACCUM_REGISTERS  = NUM_VECTOR_REGISTERS
 NUM_SCALAR_REGISTERS = 102
 
 # These values should match the ones written to the registers in the test program.
@@ -648,63 +649,70 @@ class RegisterAmdGpuTestCase(AmdGpuTestCaseBase):
         self.select_gpu()
 
     def test_vgrp_read_write(self):
-        self.do_reg_read_write_tests("v", NUM_VECTOR_REGISTERS)
+        self.do_reg_read_write_test("v", NUM_VECTOR_REGISTERS)
 
     def test_sgrp_read_write(self):
-        self.do_reg_read_write_tests("s", NUM_SCALAR_REGISTERS)
+        self.do_reg_read_write_test("s", NUM_SCALAR_REGISTERS)
 
     @expectedFailureAll("Read/Write of AGPR registers is working yet")
     def test_agrp_read_write(self):
-        self.do_reg_read_write_tests("a", NUM_VECTOR_REGISTERS)
+        self.do_reg_read_write_test("a", NUM_ACCUM_REGISTERS)
 
-    def do_reg_read_write_tests(self, reg_base, num_regs):
-        """Verify we can read and write the values to registers.
-        Values in `known_values` will be written to increasingly
-        numbered gprs (e.g v0, v1, ...)."""
+    def test_vgrp_lane_write(self):
+        self.do_lane_read_write_test("v", NUM_VECTOR_REGISTERS)
+
+    def test_agrp_lane_write(self):
+        self.do_lane_read_write_test("a", NUM_ACCUM_REGISTERS)
+
+    def do_reg_read_write_test(self, reg_base, num_regs):
+        """Verify we can read and write the whole register value"""
         self.build()
         self.run_to_reg_gpu_breakpoint(reg_base)
 
-        if self.is_vector_reg(reg_base):
-            self.do_read_write_vector_register_test(reg_base, num_regs)
-        else:
-            self.do_read_write_scalar_register_test(reg_base, num_regs)
+        for i in range(num_regs):
+            reg, known_value, new_value = self.get_test_values(reg_base, i, num_regs)
+            self.verify_reg_read_and_write(reg, known_value, new_value)
 
-    def replicate_byte(self, value):
+    def do_lane_read_write_test(self, reg_base, num_regs):
+        """Verify we can read and write the individual lanes of a register"""
+        self.build()
+        self.run_to_reg_gpu_breakpoint(reg_base)
+
+        for i in range(num_regs):
+            reg = f"{reg_base}{i}"
+            new_value = [0] * WAVE_SIZE
+            self.verify_reg_write(reg, new_value)
+
+            for lane in range(WAVE_SIZE):
+                new_value[lane] = self.replicate_byte(lane + 1)
+                self.verify_reg_write(reg, new_value)
+
+    def replicate_byte(self, value, minval=0):
         """Replicate the byte across the 4 bytes of a 32-bit value."""
         value = value & 0xFF
         return (value << 24) | (value << 16) | (value << 8) | value
 
-    def do_read_write_vector_register_test(self, reg_base, num_regs):
-        """Verify we can read and write the values to vector register lanes."""
-        for i in range(num_regs):
-            reg = f"{reg_base}{i}"
-            expected_value = [self.replicate_byte(i)] * WAVE_SIZE
-            self.verify_reg_read_and_write(reg, expected_value)
+    def get_test_values(self, reg_base, i, num_regs):
+        """Return the register to read, the known initialized value of that register, and a new value to write."""
+        reg = f"{reg_base}{i}"
+        original_value = self.replicate_byte(i)
+        new_value = self.replicate_byte(num_regs - i, minval=1)
 
-            for lane in range(WAVE_SIZE):
-                expected_value[lane] = self.replicate_byte(lane + 1)
-                self.verify_reg_write(reg, expected_value)
+        if self.is_vector_reg(reg_base):
+            original_value = [original_value] * WAVE_SIZE
+            new_value = [new_value] * WAVE_SIZE
+        return reg, original_value, new_value
 
-    def do_read_write_scalar_register_test(self, reg_base, num_regs):
-        """Verify we can read and write the values to scalar registers."""
-        for i in range(num_regs):
-            reg = f"{reg_base}{i}"
-            expected_value = self.replicate_byte(i)
-            self.verify_reg_read_and_write(reg, expected_value)
-
-    def verify_reg_read_and_write(self, reg, expected_value):
+    def verify_reg_read_and_write(self, reg, original_value, new_value):
+        """Verify that we can read and write the register with known values."""
         # First read the register and verify the expected value.
-        self.verify_reg_read(reg, expected_value)
+        self.verify_reg_read(reg, original_value)
 
-        # Now clear the register and verify the value is 0.
-        self.verify_reg_write(reg, 0)
-
-        # Now write the original value back the register.
-        # This makes sure we are writing back all the bytes.
-        self.verify_reg_write(reg, expected_value)
+        # Now write the new value back the register.
+        self.verify_reg_write(reg, new_value)
 
     def verify_reg_read(self, gpr, expected):
-        """Read a value from a register."""
+        """Read a value from a register and verify the result."""
         reg_value_str = f"{gpr} = " + self.get_reg_value_str(gpr, expected)
         self.expect(f"register read {gpr}", substrs=[reg_value_str])
 
