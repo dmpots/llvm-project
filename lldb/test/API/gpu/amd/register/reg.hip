@@ -922,7 +922,7 @@ int main() {
   // Launch sgpr kernel.
   set_known_sgpr_values_kernel<<<
       dim3(1), // Number of blocks to launch
-      dim3(64), // Number of threads to launch
+      dim3(WAVE_SIZE), // Number of threads to launch
       0, // number of bytes of additional shared memory to allocate
       hipStreamDefault // stream where the kernel should execute: default stream
       >>>();
@@ -930,7 +930,7 @@ int main() {
   // Launch agpr kernel.
   set_known_agpr_values_kernel<<<
       dim3(1), // Number of blocks to launch
-      dim3(64), // Number of threads to launch
+      dim3(WAVE_SIZE), // Number of threads to launch
       0, // number of bytes of additional shared memory to allocate
       hipStreamDefault // stream where the kernel should execute: default stream
       >>>();
