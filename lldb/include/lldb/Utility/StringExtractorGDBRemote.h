@@ -132,6 +132,7 @@ public:
 
     eServerPacketType_jSignalsInfo,
     eServerPacketType_jModulesInfo,
+    eServerPacketType_jMemorySpacesInfo,
 
     eServerPacketType_vAttach,
     eServerPacketType_vAttachWait,
@@ -188,6 +189,9 @@ public:
     eServerPacketType_jGPUPluginInitialize,
     eServerPacketType_jGPUPluginBreakpointHit,
     eServerPacketType_jGPUPluginGetDynamicLoaderLibraryInfo,
+
+    eServerPacketType_qMemRead, // Read memory with address space.
+
   };
 
   ServerPacketType GetServerPacketType() const;

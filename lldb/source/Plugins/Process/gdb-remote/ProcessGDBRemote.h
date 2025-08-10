@@ -155,6 +155,9 @@ private:
                           unsigned expected_num_ranges);
 
 public:
+  size_t DoReadMemory(const AddressSpec &addr_spec, void *buf, size_t size,
+                      Status &error) override;
+
   Status
   WriteObjectFile(std::vector<ObjectFile::LoadableData> entries) override;
 

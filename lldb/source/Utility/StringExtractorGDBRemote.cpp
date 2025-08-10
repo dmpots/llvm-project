@@ -235,6 +235,8 @@ StringExtractorGDBRemote::GetServerPacketType() const {
         return eServerPacketType_qModuleInfo;
       if (PACKET_STARTS_WITH("qMemTags:"))
         return eServerPacketType_qMemTags;
+      if (PACKET_STARTS_WITH("qMemRead:"))
+        return eServerPacketType_qMemRead;
       break;
 
     case 'P':
@@ -335,6 +337,8 @@ StringExtractorGDBRemote::GetServerPacketType() const {
       return eServerPacketType_jLLDBTraceGetState;
     if (PACKET_STARTS_WITH("jLLDBTraceGetBinaryData:"))
       return eServerPacketType_jLLDBTraceGetBinaryData;
+    if (PACKET_MATCHES("jMemorySpacesInfo"))
+      return eServerPacketType_jMemorySpacesInfo;
     break;
 
   case 'v':

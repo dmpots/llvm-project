@@ -1133,6 +1133,8 @@ Status ProcessGDBRemote::ConnectToDebugserver(llvm::StringRef connect_url) {
       }
     }
   }
+  m_memory_space_infos = m_gdb_comm.GetMemorySpaceInfos();
+
   // First dispatch any commands from the platform:
   auto handle_cmds = [&](const Args &args) -> void {
     for (const Args::ArgEntry &entry : args) {
@@ -3119,6 +3121,11 @@ ProcessGDBRemote::ParseMultiMemReadPacket(llvm::StringRef response_str,
 
   return read_results;
 }
+size_t ProcessGDBRemote::DoReadMemory(const AddressSpec &addr_spec, void *buf, 
+                                      size_t size, Status &error) {
+  return m_gdb_comm.ReadMemory(addr_spec, buf, size, error);
+}
+
 
 bool ProcessGDBRemote::SupportsMemoryTagging() {
   return m_gdb_comm.GetMemoryTaggingSupported();

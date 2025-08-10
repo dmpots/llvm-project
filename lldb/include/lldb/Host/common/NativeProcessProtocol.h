@@ -18,6 +18,7 @@
 #include "lldb/Utility/Iterable.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/GPUGDBRemotePackets.h"
+#include "lldb/Utility/MemorySpace.h"
 #include "lldb/Utility/TraceGDBRemotePackets.h"
 #include "lldb/Utility/UnimplementedError.h"
 #include "lldb/lldb-private-forward.h"
@@ -92,6 +93,15 @@ public:
 
   virtual Status ReadMemory(lldb::addr_t addr, void *buf, size_t size,
                             size_t &bytes_read) = 0;
+
+  virtual std::vector<MemorySpaceInfo> GetMemorySpaceInfo() { return {}; }
+
+  virtual Status ReadMemoryWithSpace(lldb::addr_t addr, uint64_t addr_space,
+                                     NativeThreadProtocol *thread,
+                                     void *buf, size_t size,
+                                     size_t &bytes_read) {
+    return Status::FromErrorString("ReadMemoryWithSpace not supported");
+  };
 
   Status ReadMemoryWithoutTrap(lldb::addr_t addr, void *buf, size_t size,
                                size_t &bytes_read);
@@ -303,8 +313,8 @@ public:
     siginfo_read = (1u << 8),
     gpu_plugins = (1u << 9),
     gpu_dyld = (1u << 10),
-
-    LLVM_MARK_AS_BITMASK_ENUM(gpu_dyld)
+    memory_spaces = (1u << 11),
+    LLVM_MARK_AS_BITMASK_ENUM(memory_spaces)
   };
 
   class Manager {
