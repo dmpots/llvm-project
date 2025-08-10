@@ -378,6 +378,51 @@ bool ProcessProperties::TrackMemoryCacheChanges() const {
       idx, g_process_properties[idx].default_uint_value != 0);
 }
 
+
+llvm::Expected<lldb::addr_t> AddressSpec::ResolveAddressInDefaultAddressSpace(
+    lldb_private::Process &process) const {
+  if (!IsInDefaultAddressSpace())
+      return llvm::createStringError(
+          llvm::inconvertibleErrorCode(),
+          "address not in default address space");
+
+  if (m_module_sp) {
+    if (m_thread_sp) {
+      // TODO: add support for TLS via the Dynamic Loader.
+      DynamicLoader *dyld = process.GetDynamicLoader();
+      if (dyld) {
+        addr_t load_addr = 
+            dyld->GetThreadLocalData(m_module_sp, m_thread_sp, m_value);
+        if (load_addr != LLDB_INVALID_ADDRESS)
+          return load_addr;
+        return llvm::createStringError(
+            llvm::inconvertibleErrorCode(),
+            "dynamic loader was unable to resolve the thread local address");
+      }
+      return llvm::createStringError(
+            llvm::inconvertibleErrorCode(),
+            "no dynamic loader, unable to resolve the thread local address");
+    } else {
+      // m_value is a file address within a module.
+      Address so_addr;
+      if (m_module_sp->ResolveFileAddress(m_value, so_addr)) {
+        addr_t load_addr = so_addr.GetLoadAddress(&process.GetTarget());
+        if (load_addr != LLDB_INVALID_ADDRESS)
+          return load_addr;
+        return llvm::createStringError(
+            llvm::inconvertibleErrorCode(),
+            "address section is not loaded in target");
+      }
+      return llvm::createStringError(
+            llvm::inconvertibleErrorCode(),
+            "unable to resolve file address in module");      
+    }
+  }
+  // See if we have an address + address space
+  // We just have a plain load address already
+  return m_value;
+}
+
 ProcessSP Process::FindPlugin(lldb::TargetSP target_sp,
                               llvm::StringRef plugin_name,
                               ListenerSP listener_sp,
@@ -1922,6 +1967,33 @@ Status Process::DisableSoftwareBreakpoint(BreakpointSite *bp_site) {
       bp_site->GetID(), (uint64_t)bp_addr, error.AsCString());
   return error;
 }
+
+
+size_t Process::ReadMemory(const AddressSpec &addr_spec, void *buf, 
+                           size_t size, Status &error) {
+  if (addr_spec.IsInDefaultAddressSpace()) {
+    llvm::Expected<lldb::addr_t> load_addr = 
+        addr_spec.ResolveAddressInDefaultAddressSpace(*this);
+    if (load_addr) {
+      // We were able to resolve the address to an address in the default 
+      // address space. Just call our standard read memory method.
+      return DoReadMemory(*load_addr, buf, size, error);
+    }
+    error = Status::FromError(load_addr.takeError());
+    return 0;
+  }
+  // We have an address that can't be resolved in the default address space, so
+  // we need to call the overload that knows how to read from an address space.
+  return DoReadMemory(addr_spec, buf, size, error);
+}
+
+size_t Process::DoReadMemory(const AddressSpec &addr_spec, void *buf, 
+                             size_t size, Status &error) {
+  error = 
+      Status::FromErrorString("AddressSpec memory reading is not supported");
+  return 0;
+}
+
 
 // Uncomment to verify memory caching works after making changes to caching
 // code

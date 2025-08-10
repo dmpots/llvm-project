@@ -139,6 +139,9 @@ public:
   size_t DoReadMemory(lldb::addr_t addr, void *buf, size_t size,
                       Status &error) override;
 
+  size_t DoReadMemory(const AddressSpec &addr_spec, void *buf, size_t size,
+                      Status &error) override;
+
   Status
   WriteObjectFile(std::vector<ObjectFile::LoadableData> entries) override;
 

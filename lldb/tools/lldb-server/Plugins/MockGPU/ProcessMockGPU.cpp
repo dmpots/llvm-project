@@ -68,6 +68,44 @@ Status ProcessMockGPU::ReadMemory(lldb::addr_t addr, void *buf, size_t size,
   return Status::FromErrorString("unimplemented");
 }
 
+#define ADDR_SPACE_1 1
+#define ADDR_SPACE_2 2
+
+std::vector<MemorySpaceInfo> ProcessMockGPU::GetMemorySpaceInfo() {
+  std::vector<MemorySpaceInfo> result;
+  result.push_back({"Global", ADDR_SPACE_1, false});
+  result.push_back({"Thread", ADDR_SPACE_2, true});
+  return result;
+}
+
+Status ProcessMockGPU::ReadMemoryWithSpace(lldb::addr_t addr, 
+                                           uint64_t addr_space, 
+                                           NativeThreadProtocol *thread, 
+                                           void *buf, size_t size, 
+                                           size_t &bytes_read) {
+  bytes_read = 0;
+  switch (addr_space) {
+  case ADDR_SPACE_1:
+    ::memset(buf, '1', size);
+    bytes_read = size;
+    return Status();
+
+  case ADDR_SPACE_2:
+    // Address space 1 requires a thread
+    if (thread == nullptr)
+      return Status::FromErrorString("reading from address space 2 requires a "
+                                     "thread");
+    ::memset(buf, '2', size);
+    bytes_read = size;
+    return Status();
+
+  default:
+    return Status::FromErrorStringWithFormat("invalid address space %" PRIu64, 
+                                             addr_space);
+  }
+}
+
+
 Status ProcessMockGPU::WriteMemory(lldb::addr_t addr, const void *buf,
                                    size_t size, size_t &bytes_written) {
   return Status::FromErrorString("unimplemented");
@@ -210,5 +248,5 @@ ProcessMockGPU::Manager::Attach(
 
 ProcessMockGPU::Extension
 ProcessMockGPU::Manager::GetSupportedExtensions() const {
-  return Extension::gpu_dyld;
+  return Extension::gpu_dyld | Extension::memory_spaces;
 }

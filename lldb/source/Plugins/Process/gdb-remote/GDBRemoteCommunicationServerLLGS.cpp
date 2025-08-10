@@ -104,6 +104,13 @@ void GDBRemoteCommunicationServerLLGS::RegisterPacketHandlers() {
                                 &GDBRemoteCommunicationServerLLGS::Handle__M);
   RegisterMemberFunctionHandler(StringExtractorGDBRemote::eServerPacketType__m,
                                 &GDBRemoteCommunicationServerLLGS::Handle__m);
+  RegisterMemberFunctionHandler(
+    StringExtractorGDBRemote::eServerPacketType_qMemRead,
+    &GDBRemoteCommunicationServerLLGS::Handle_qMemRead);
+  RegisterMemberFunctionHandler(
+    StringExtractorGDBRemote::eServerPacketType_jMemorySpacesInfo,
+    &GDBRemoteCommunicationServerLLGS::Handle_jMemorySpacesInfo);
+                                
   RegisterMemberFunctionHandler(StringExtractorGDBRemote::eServerPacketType_p,
                                 &GDBRemoteCommunicationServerLLGS::Handle_p);
   RegisterMemberFunctionHandler(StringExtractorGDBRemote::eServerPacketType_P,
@@ -4082,6 +4089,104 @@ GDBRemoteCommunicationServerLLGS::Handle_QMemTags(
 }
 
 GDBRemoteCommunication::PacketResult
+GDBRemoteCommunicationServerLLGS::Handle_jMemorySpacesInfo(
+    StringExtractorGDBRemote &packet) {
+  Log *log = GetLog(LLDBLog::Process);
+
+  // Ensure we have a process.
+  if (!m_current_process ||
+      (m_current_process->GetID() == LLDB_INVALID_PROCESS_ID)) {
+    LLDB_LOGF(
+        log,
+        "GDBRemoteCommunicationServerLLGS::%s failed, no process available",
+        __FUNCTION__);
+    return SendErrorResponse(Status::FromErrorString("invalid process"));        
+  }
+  std::vector<MemorySpaceInfo> memory_space_infos = 
+      m_current_process->GetMemorySpaceInfo();
+  if (memory_space_infos.empty())
+    return SendUnimplementedResponse(packet.GetStringRef().data());
+  StreamGDBRemote response;
+  response.PutAsJSONArray(memory_space_infos);
+  return SendPacketNoLock(response.GetString());
+}
+
+GDBRemoteCommunication::PacketResult
+GDBRemoteCommunicationServerLLGS::Handle_qMemRead(
+    StringExtractorGDBRemote &packet) {
+
+  // Ensure we have a process.
+  if (!m_current_process ||
+      (m_current_process->GetID() == LLDB_INVALID_PROCESS_ID)) {
+    Log *log = GetLog(LLDBLog::Process);
+    LLDB_LOGF(
+        log,
+        "GDBRemoteCommunicationServerLLGS::%s failed, no process available",
+        __FUNCTION__);
+    return SendErrorResponse(Status::FromErrorString("invalid process"));        
+  }
+
+  // We are expecting
+  // qMemRead:<key>:<value>;<key>:<value>;...[;<key>:<value>;]
+
+  llvm::StringRef key;
+  llvm::StringRef value;
+  std::optional<lldb::addr_t> addr;
+  std::optional<uint64_t> space;
+  std::optional<uint64_t> length;
+  NativeThreadProtocol *thread = nullptr;
+
+  Log *log = GetLog(GDBRLog::Plugin);
+
+  packet.SetFilePos(::strlen("qMemRead:"));
+  uint64_t uval64;
+  while (packet.GetNameColonValue(key, value)) {
+    LLDB_LOG(log, "qMemRead key = \"{0}\", value = \"{1}\"", key, value);
+    if (key == "addr") {
+      if (value.getAsInteger(16, uval64))
+        return SendIllFormedResponse(packet, "invalid address value");
+      addr = uval64;
+    } else if (key == "length") {
+      if (value.getAsInteger(16, uval64))
+        return SendIllFormedResponse(packet, "invalid length value");
+      length = uval64;
+    } else if (key == "space") {
+      if (value.getAsInteger(16, uval64))
+        return SendIllFormedResponse(packet, "invalid address space value");
+      space = uval64;
+    } else if (key == "tid") {
+      if (value.getAsInteger(16, uval64))
+        return SendIllFormedResponse(packet, "invalid tid value");
+      thread = m_current_process->GetThreadByID(uval64);
+      if (!thread)
+        return SendErrorResponse(
+            Status::FromErrorString("Invalid thread ID"));
+    }
+  }
+
+  if (!addr)
+    return SendErrorResponse(
+        Status::FromErrorString("missing required \"addr\" key/value pair"));
+  if (!length)
+    return SendErrorResponse(
+        Status::FromErrorString("missing required \"length\" key/value pair"));
+
+  StreamGDBRemote response;
+  size_t bytes_read = 0;
+  std::string buf(*length, '\0');
+
+  Status error = m_current_process->ReadMemoryWithSpace(*addr, 
+                                                        space.value_or(0), 
+                                                        thread, buf.data(), 
+                                                        *length, bytes_read);
+  if (error.Fail())
+    return SendErrorResponse(error);
+
+  response.PutBytesAsRawHex8(buf.data(), bytes_read);
+  return SendPacketNoLock(response.GetString());
+}
+
+GDBRemoteCommunication::PacketResult
 GDBRemoteCommunicationServerLLGS::Handle_qSaveCore(
     StringExtractorGDBRemote &packet) {
   // Fail if we don't have a current process.
@@ -4405,6 +4510,8 @@ std::vector<std::string> GDBRemoteCommunicationServerLLGS::HandleFeatures(
     ret.push_back("gpu-plugins+");
   if (bool(plugin_features & Extension::gpu_dyld))
     ret.push_back("gpu-dyld+");
+  if (bool(plugin_features & Extension::memory_spaces))
+    ret.push_back("memory-spaces+");
 
   // check for client features
   m_extensions_supported = {};

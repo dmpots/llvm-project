@@ -288,6 +288,10 @@ protected:
 
   PacketResult Handle_QMemTags(StringExtractorGDBRemote &packet);
 
+  PacketResult Handle_qMemRead(StringExtractorGDBRemote &packet);
+  
+  PacketResult Handle_jMemorySpacesInfo(StringExtractorGDBRemote &packet);
+
   PacketResult Handle_T(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_jGPUPluginInitialize(StringExtractorGDBRemote &packet);
