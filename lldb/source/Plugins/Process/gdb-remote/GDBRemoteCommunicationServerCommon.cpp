@@ -1267,7 +1267,8 @@ void GDBRemoteCommunicationServerCommon::
     response.PutCString("triple:");
     response.PutStringAsRawHex8(proc_triple.getTriple());
     response.PutChar(';');
-    if (proc_arch.GetTriple().isAMDGPU()) {
+    if (proc_arch.GetTriple().isAMDGPU() &&
+        proc_arch.GetTriple().getObjectFormat() == llvm::Triple::ELF) {
       const uint32_t cpu_type = proc_arch.GetElfCPUType();
       if (cpu_type != 0)
         response.Printf("cputype:%" PRIx32 ";", cpu_type);
