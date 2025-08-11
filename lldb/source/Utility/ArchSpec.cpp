@@ -702,6 +702,8 @@ FindArchDefinitionEntry(const ArchDefinition *def, ArchSpec::Core core) {
   return nullptr;
 }
 
+static llvm::StringRef GetAMDGPUVariantName(uint32_t sub);
+
 //===----------------------------------------------------------------------===//
 // Constructors and destructors.
 
@@ -830,12 +832,9 @@ std::string ArchSpec::GetClangTargetCPU() const {
     cpu = llvm::ARM::getARMCPUForArch(GetTriple(), "").str();
 
   if (GetTriple().isAMDGPU()) {
-    switch (m_core) {
-      case ArchSpec::eCore_amd_gpu_gcn_GFX942:
-        cpu = "gfx942";
-        break;
-      default:
-        break;
+    uint32_t sub = GetAMDGPUCPUSubType();
+    if (sub != LLDB_INVALID_CPUTYPE) {
+      cpu = GetAMDGPUVariantName(sub);
     }
   }
   return cpu;
