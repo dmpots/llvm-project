@@ -42,14 +42,14 @@ __global__ void asm_kernel() {
   "s_movk_i32 s26, 0x1234\n"
 
   // SOPP: Scalar, immediate
-  "s_nop 0x1\n"
+  "s_nop 1\n"
 
   // VOP1: Vector ALU, 1 operands
   "v_accvgpr_mov_b32 a3, a5\n"
 
   // VOP2: Vector ALU, 2 operands
-  "v_add_f32 v17, v18, v19\n"
-  "v_add_f32 v17, v18, 0x3f800000\n"  // literal 1.0f
+  "v_add_f32_e32 v17, v18, v19\n"
+  "v_add_f32_e64 v17, v18, 1.0\n"
 
   // VOP3: Vector ALU, 3 operands
   "v_fma_f32 v20, v21, v22, v23\n"
@@ -58,8 +58,8 @@ __global__ void asm_kernel() {
   "v_accvgpr_read_b32 v17, a3\n"
 
   // VOPC: Vector compare
-  "v_cmp_eq_f32 vcc, v24, v25\n"
-  "v_cmp_eq_f32 vcc, v24, 0x3f800000\n"  // literal 1.0f
+  "v_cmp_eq_f32_e32 vcc, v24, v25\n"
+  "v_cmp_eq_f32_e64 vcc, v24, 1.0\n"
   :
   :
   : "a3", "a5",
