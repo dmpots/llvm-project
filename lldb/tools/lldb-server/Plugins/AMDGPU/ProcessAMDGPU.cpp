@@ -18,6 +18,7 @@
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/Support/Error.h"
 
+#include <amd-dbgapi/amd-dbgapi.h>
 #include <cinttypes>
 #include <iostream>
 
@@ -98,9 +99,17 @@ size_t ProcessAMDGPU::UpdateThreads() {
 }
 
 const ArchSpec &ProcessAMDGPU::GetArchitecture() const {
-  // TODO: Read this from the dbgapi:
-  // amd_dbgapi_architecture_get_info(AMD_DBGAPI_ARCHITECTURE_INFO_ELF_AMDGPU_MACHINE)
-  uint32_t cpu_subtype = llvm::ELF::EF_AMDGPU_MACH_AMDGCN_GFX942;
+  // Query the subtype from the dbgapi.
+  uint32_t cpu_subtype = 0;
+  amd_dbgapi_status_t status = amd_dbgapi_architecture_get_info(
+      m_debugger->m_architecture_id,
+      AMD_DBGAPI_ARCHITECTURE_INFO_ELF_AMDGPU_MACHINE, sizeof(cpu_subtype),
+      &cpu_subtype);
+  if (status != AMD_DBGAPI_STATUS_SUCCESS) {
+    LLDB_LOGF(GetLog(GDBRLog::Plugin),
+              "amd_dbgapi_architecture_get_info failed: %d", status);
+  }
+
   m_arch = ArchSpec(eArchTypeELF, llvm::ELF::EM_AMDGPU, cpu_subtype);
   m_arch.MergeFrom(ArchSpec("amdgcn-amd-amdhsa"));
   return m_arch;
