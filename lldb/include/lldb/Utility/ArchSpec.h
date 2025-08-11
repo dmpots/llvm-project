@@ -525,9 +525,9 @@ public:
 
   uint32_t GetMachOCPUSubType() const;
 
-  uint32_t GetAMDGPUCPUType() const;
+  uint32_t GetElfCPUType() const;
 
-  uint32_t GetAMDGPUCPUSubType() const;
+  uint32_t GetElfCPUSubType() const;
 
   /// Architecture data byte width accessor
   ///

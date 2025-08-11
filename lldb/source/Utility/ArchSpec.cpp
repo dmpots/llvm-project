@@ -832,7 +832,7 @@ std::string ArchSpec::GetClangTargetCPU() const {
     cpu = llvm::ARM::getARMCPUForArch(GetTriple(), "").str();
 
   if (GetTriple().isAMDGPU()) {
-    uint32_t sub = GetAMDGPUCPUSubType();
+    uint32_t sub = GetElfCPUSubType();
     if (sub != LLDB_INVALID_CPUTYPE) {
       cpu = GetAMDGPUVariantName(sub);
     }
@@ -870,11 +870,11 @@ uint32_t ArchSpec::GetMachOCPUSubType() const {
   return GetCPUSubType(&g_macho_arch_def, m_core);
 }
 
-uint32_t ArchSpec::GetAMDGPUCPUType() const {
+uint32_t ArchSpec::GetElfCPUType() const {
   return GetCPUType(&g_elf_arch_def, m_core);
 }
 
-uint32_t ArchSpec::GetAMDGPUCPUSubType() const {
+uint32_t ArchSpec::GetElfCPUSubType() const {
   return GetCPUSubType(&g_elf_arch_def, m_core);
 }
 

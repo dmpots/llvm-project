@@ -1268,11 +1268,11 @@ void GDBRemoteCommunicationServerCommon::
     response.PutStringAsRawHex8(proc_triple.getTriple());
     response.PutChar(';');
     if (proc_arch.GetTriple().isAMDGPU()) {
-      const uint32_t cpu_type = proc_arch.GetAMDGPUCPUType();
+      const uint32_t cpu_type = proc_arch.GetElfCPUType();
       if (cpu_type != 0)
         response.Printf("cputype:%" PRIx32 ";", cpu_type);
 
-      const uint32_t cpu_subtype = proc_arch.GetAMDGPUCPUSubType();
+      const uint32_t cpu_subtype = proc_arch.GetElfCPUSubType();
       if (cpu_subtype != 0)
         response.Printf("cpusubtype:%" PRIx32 ";", cpu_subtype);
     }
