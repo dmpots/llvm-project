@@ -1442,8 +1442,7 @@ const char* AMDGPUDisassembler::getRegClassName(unsigned RegClassID) const {
 inline
 MCOperand AMDGPUDisassembler::errOperand(unsigned V,
                                          const Twine& ErrMsg) const {
-  if (CommentStream)
-    *CommentStream << "Error: " + ErrMsg;
+  *CommentStream << "Error: " + ErrMsg;
 
   // ToDo: add support for error operands to MCInst.h
   // return MCOperand::createError(V);
