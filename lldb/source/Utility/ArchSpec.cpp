@@ -840,52 +840,42 @@ std::string ArchSpec::GetClangTargetCPU() const {
   return cpu;
 }
 
-uint32_t ArchSpec::GetMachOCPUType() const {
-  const CoreDefinition *core_def = FindCoreDefinition(m_core);
-  if (core_def) {
-    const ArchDefinitionEntry *arch_def =
-        FindArchDefinitionEntry(&g_macho_arch_def, core_def->core);
-    if (arch_def) {
-      return arch_def->cpu;
-    }
-  }
+static const ArchDefinitionEntry *
+FindArchDefEntryIfCoreIsValid(const ArchDefinition *def, ArchSpec::Core core) {
+  if (const CoreDefinition *core_def = FindCoreDefinition(core))
+    return FindArchDefinitionEntry(def, core_def->core);
+
+  return nullptr;
+}
+
+static uint32_t GetCPUType(const ArchDefinition *def, ArchSpec::Core core) {
+  if (const ArchDefinitionEntry *arch_def =
+          FindArchDefEntryIfCoreIsValid(def, core))
+    return arch_def->cpu;
   return LLDB_INVALID_CPUTYPE;
+}
+
+static uint32_t GetCPUSubType(const ArchDefinition *def, ArchSpec::Core core) {
+  if (const ArchDefinitionEntry *arch_def =
+          FindArchDefEntryIfCoreIsValid(def, core))
+    return arch_def->sub;
+  return LLDB_INVALID_CPUTYPE;
+}
+
+uint32_t ArchSpec::GetMachOCPUType() const {
+  return GetCPUType(&g_macho_arch_def, m_core);
 }
 
 uint32_t ArchSpec::GetMachOCPUSubType() const {
-  const CoreDefinition *core_def = FindCoreDefinition(m_core);
-  if (core_def) {
-    const ArchDefinitionEntry *arch_def =
-        FindArchDefinitionEntry(&g_macho_arch_def, core_def->core);
-    if (arch_def) {
-      return arch_def->sub;
-    }
-  }
-  return LLDB_INVALID_CPUTYPE;
+  return GetCPUSubType(&g_macho_arch_def, m_core);
 }
 
 uint32_t ArchSpec::GetAMDGPUCPUType() const {
-  const CoreDefinition *core_def = FindCoreDefinition(m_core);
-  if (core_def) {
-    const ArchDefinitionEntry *arch_def =
-        FindArchDefinitionEntry(&g_elf_arch_def, core_def->core);
-    if (arch_def) {
-      return arch_def->cpu;
-    }
-  }
-  return LLDB_INVALID_CPUTYPE;
+  return GetCPUType(&g_elf_arch_def, m_core);
 }
 
 uint32_t ArchSpec::GetAMDGPUCPUSubType() const {
-  const CoreDefinition *core_def = FindCoreDefinition(m_core);
-  if (core_def) {
-    const ArchDefinitionEntry *arch_def =
-        FindArchDefinitionEntry(&g_elf_arch_def, core_def->core);
-    if (arch_def) {
-      return arch_def->sub;
-    }
-  }
-  return LLDB_INVALID_CPUTYPE;
+  return GetCPUSubType(&g_elf_arch_def, m_core);
 }
 
 uint32_t ArchSpec::GetDataByteSize() const {
