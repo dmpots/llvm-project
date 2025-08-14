@@ -240,6 +240,7 @@ public:
   SBValue GetSiginfo();
 
 private:
+  friend class SBAddressSpec;
   friend class SBBreakpoint;
   friend class SBBreakpointLocation;
   friend class SBBreakpointCallbackBaton;

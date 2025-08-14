@@ -306,7 +306,7 @@ protected:
 
   PacketResult Handle_qMemRead(StringExtractorGDBRemote &packet);
   
-  PacketResult Handle_jMemorySpacesInfo(StringExtractorGDBRemote &packet);
+  PacketResult Handle_jAddressSpacesInfo(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_T(StringExtractorGDBRemote &packet);
 

@@ -71,8 +71,8 @@ Status ProcessMockGPU::ReadMemory(lldb::addr_t addr, void *buf, size_t size,
 #define ADDR_SPACE_1 1
 #define ADDR_SPACE_2 2
 
-std::vector<MemorySpaceInfo> ProcessMockGPU::GetMemorySpaceInfo() {
-  std::vector<MemorySpaceInfo> result;
+std::vector<AddressSpaceInfo> ProcessMockGPU::GetAddressSpaces() {
+  std::vector<AddressSpaceInfo> result;
   result.push_back({"Global", ADDR_SPACE_1, false});
   result.push_back({"Thread", ADDR_SPACE_2, true});
   return result;
@@ -93,8 +93,8 @@ Status ProcessMockGPU::ReadMemoryWithSpace(lldb::addr_t addr,
   case ADDR_SPACE_2:
     // Address space 1 requires a thread
     if (thread == nullptr)
-      return Status::FromErrorString("reading from address space 2 requires a "
-                                     "thread");
+      return Status::FromErrorString("reading from address space \"Thread\" "
+                                     "requires a thread");
     ::memset(buf, '2', size);
     bytes_read = size;
     return Status();
@@ -248,5 +248,5 @@ ProcessMockGPU::Manager::Attach(
 
 ProcessMockGPU::Extension
 ProcessMockGPU::Manager::GetSupportedExtensions() const {
-  return Extension::gpu_dyld | Extension::memory_spaces;
+  return Extension::gpu_dyld | Extension::address_spaces;
 }

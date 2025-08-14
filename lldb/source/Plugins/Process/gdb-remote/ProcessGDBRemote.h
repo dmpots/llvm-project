@@ -155,7 +155,8 @@ private:
                           unsigned expected_num_ranges);
 
 public:
-  size_t DoReadMemory(const AddressSpec &addr_spec, void *buf, size_t size,
+  size_t DoReadMemory(const AddressSpec &addr_spec, 
+                      const AddressSpaceInfo &info, void *buf, size_t size, 
                       Status &error) override;
 
   Status

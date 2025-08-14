@@ -303,6 +303,7 @@ public:
 
 private:
   friend class SBAddress;
+  friend class SBAddressSpec;
   friend class SBFrame;
   friend class SBSection;
   friend class SBSymbolContext;

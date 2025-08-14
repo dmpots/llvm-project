@@ -132,7 +132,7 @@ public:
 
     eServerPacketType_jSignalsInfo,
     eServerPacketType_jModulesInfo,
-    eServerPacketType_jMemorySpacesInfo,
+    eServerPacketType_jAddressSpacesInfo,
 
     eServerPacketType_vAttach,
     eServerPacketType_vAttachWait,
