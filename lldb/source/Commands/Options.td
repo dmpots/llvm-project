@@ -513,7 +513,7 @@ let Command = "memory read" in {
   def memory_read_force : Option<"force", "r">, Groups<[1,2,3]>,
     Desc<"Necessary if reading over target.max-memory-read-size bytes.">;
   def memory_space : Option<"space", "p">, Groups<[1,2,3,4]>, Arg<"Name">,
-    Required, Desc<"The name the memory space to read from.">;
+    Required, Desc<"The name of the address space to read from.">;
 }
 
 let Command = "memory find" in {

@@ -70,7 +70,7 @@ class Manager : public NativeProcessProtocol::Manager {
   Status ReadMemory(lldb::addr_t addr, void *buf, size_t size,
                     size_t &bytes_read) override;
 
-  std::vector<MemorySpaceInfo> GetMemorySpaceInfo() override;
+  std::vector<AddressSpaceInfo> GetAddressSpaces() override;
 
   Status ReadMemoryWithSpace(lldb::addr_t addr, uint64_t addr_space, 
                              NativeThreadProtocol *thread, void *buf, 

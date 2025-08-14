@@ -46,11 +46,11 @@
 #include "lldb/Target/ThreadPlanStack.h"
 #include "lldb/Target/Trace.h"
 #include "lldb/Utility/AddressableBits.h"
+#include "lldb/Utility/AddressSpace.h"
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/Broadcaster.h"
 #include "lldb/Utility/Event.h"
 #include "lldb/Utility/Listener.h"
-#include "lldb/Utility/MemorySpace.h"
 #include "lldb/Utility/NameMatches.h"
 #include "lldb/Utility/ProcessInfo.h"
 #include "lldb/Utility/Status.h"
@@ -358,43 +358,56 @@ inline bool operator!=(const ProcessModID &lhs, const ProcessModID &rhs) {
 /// - A file address + module for a file specific address in a module.
 /// - lldb::addr_t + module + thread ID for TLS (Thread Local Storage)
 class AddressSpec {
-  lldb::addr_t m_value; // Load address, file address or offset.
-  std::optional<uint64_t> m_space;
-  lldb::ModuleSP m_module_sp; // For TLS 
-  lldb::ThreadSP m_thread_sp; // For TLS
+  /// Load address, file address or offset. If this optional has no value, then
+  /// a constructor was called that failed to resolve.
+  lldb::addr_t m_value; 
+  /// The name of the address space to read from if the value is not empty.
+  std::string m_addr_space;
+  /// A module might be required for thread local data for a module, or for
+  /// address spaces that are thread specific.
+  lldb::ModuleWP m_module_wp;
+  /// A thread is needed for thread local data accesses where the m_value is
+  /// an offset in the thread specific section for a module that is maintained
+  /// by the dynamic loader, or for address spaces that are thread specific.
+  lldb::ThreadWP m_thread_wp;
 public:
   /// Construct an AddressSpec from a load address.
   explicit AddressSpec(lldb::addr_t load_addr) : m_value(load_addr) {}
 
-  /// Construct an AddressSpec from a load address and address space and an 
+  /// Construct an AddressSpec from an address and address space and an 
   /// optional thread.
-  AddressSpec(lldb::addr_t load_addr, 
-              uint64_t space,
+  AddressSpec(lldb::addr_t addr, 
+              llvm::StringRef addr_space,
               lldb::ThreadSP thread_sp = {}) : 
-      m_value(load_addr), m_space(space), m_thread_sp(thread_sp) {}
+      m_value(addr), m_addr_space(addr_space.str()), m_thread_wp(thread_sp) {}
 
   /// Construct an AddressSpec from a file address and its module.
   AddressSpec(lldb::addr_t file_addr, 
               lldb::ModuleSP module_sp) : 
-      m_value(file_addr), m_module_sp(module_sp) {}
+      m_value(file_addr), m_module_wp(module_sp) {}
 
-  /// Construct and AddressSpec from an offset + module + thread ID.
+  /// Construct and AddressSpec from an offset + module + thread ID which 
+  /// represents a threaad local storage address.
   AddressSpec(lldb::addr_t offset, 
               lldb::ModuleSP module_sp, 
               lldb::ThreadSP thread_sp) : 
-      m_value(offset), m_module_sp(module_sp), m_thread_sp(thread_sp) {}
+      m_value(offset), m_module_wp(module_sp), m_thread_wp(thread_sp) {}
   
   /// Check if this address specification describes an address that is mapped
-  /// into the default address space.
+  /// into the default address space. The default address space indicates we
+  /// should read memory from the process using the old APIs that take a 
+  /// lldb::addr_t as a load address with no address space.
   bool IsInDefaultAddressSpace() const {
     // If we have an address space, then this address can't be in the default
     // address space.
-    return !m_space.has_value();
+    return m_addr_space.empty();
   }
 
   /// See if this address spec can be converted a load adderess in the default
-  /// address space. This function should only be called if a previous call to
-  /// AddressSpec::IsInDefaultAddressSpace() returned true.
+  /// address space. The call will resolve any AddressSpec that doesn't have
+  /// an address space into a load address. If the address has an address space, 
+  /// an error will be returned. Otherwise this method will resolve the address
+  /// or return an error detailing why the address failed to resolve.
   ///
   /// \param[in] process The process to use when resolving this address.
   ///
@@ -403,14 +416,21 @@ public:
   /// \return
   ///     An error object. If the error is in a success state, \a load_addr was
   ///     successfully resolved. Otherwise the error states why the address 
-  ///     be resolved. 
+  ///     couldn't be resolved. 
 
   llvm::Expected<lldb::addr_t> ResolveAddressInDefaultAddressSpace(
       lldb_private::Process &process) const;
 
   uint64_t GetValue() const { return m_value; }
-  std::optional<uint64_t> GetSpace() const { return m_space; }
-  lldb::ThreadSP GetThread() const { return m_thread_sp; }
+  llvm::StringRef GetSpaceName() const { return m_addr_space; }
+  // Convert
+  llvm::Expected<uint64_t> GetSpaceIndex(lldb_private::Process &process) const;
+  // Return an error if this is module specific and the module has expired, 
+  // otherwise return a ModuleSP, even if it is empty.
+  llvm::Expected<lldb::ModuleSP> GetModule() const;
+  // Return an error if this is thread specific and the thread has expired, 
+  // otherwise return a ThreadSP, even if it is empty.
+  llvm::Expected<lldb::ThreadSP> GetThread() const;
 };
 
 class Process : public std::enable_shared_from_this<Process>,
@@ -2842,22 +2862,14 @@ void PruneThreadPlans();
   /// would not require discarding all non-base thread plans.
   void SetBaseDirection(lldb::RunDirection direction);
 
-  /// Get all of the memory space infos for this process.
-  const std::vector<MemorySpaceInfo> &GetMemorySpaceInfos() { 
-    return m_memory_space_infos; 
+  /// Get all of the address space infos for this process.
+  const std::vector<AddressSpaceInfo> &GetAddressSpaces() { 
+    return m_address_spaces; 
   }
 
-  /// Get the memory space number from a memory space name.
-  std::optional<MemorySpaceInfo> 
-  GetMemorySpaceInfo(llvm::StringRef memory_space_name) {
-    if (!memory_space_name.empty()) {
-      for (const auto &memory_space_info: m_memory_space_infos) {
-        if (memory_space_info.name == memory_space_name.str())
-          return memory_space_info;
-      }
-    }
-    return std::nullopt;
-  }
+  /// Get the address space number from a address space name.
+  llvm::Expected<AddressSpaceInfo> 
+  GetAddressSpaceInfo(llvm::StringRef address_space_name);
 
 protected:
   friend class Trace;
@@ -2974,7 +2986,8 @@ protected:
   virtual size_t DoReadMemory(lldb::addr_t addr, void *buf, 
                               size_t size, Status &error) = 0;
 
-  virtual size_t DoReadMemory(const AddressSpec &addr_spec, void *buf, 
+  virtual size_t DoReadMemory(const AddressSpec &addr_spec, 
+                              const AddressSpaceInfo &info, void *buf, 
                               size_t size, Status &error);
 
   virtual void DoFindInMemory(lldb::addr_t start_addr, lldb::addr_t end_addr,
@@ -3372,7 +3385,7 @@ protected:
   /// GetExtendedCrashInformation.
   StructuredData::DictionarySP m_crash_info_dict_sp;
 
-  std::vector<MemorySpaceInfo> m_memory_space_infos;
+  std::vector<AddressSpaceInfo> m_address_spaces;
 
   size_t RemoveBreakpointOpcodesFromBuffer(lldb::addr_t addr, size_t size,
                                            uint8_t *buf) const;

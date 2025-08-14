@@ -108,8 +108,8 @@ void GDBRemoteCommunicationServerLLGS::RegisterPacketHandlers() {
     StringExtractorGDBRemote::eServerPacketType_qMemRead,
     &GDBRemoteCommunicationServerLLGS::Handle_qMemRead);
   RegisterMemberFunctionHandler(
-    StringExtractorGDBRemote::eServerPacketType_jMemorySpacesInfo,
-    &GDBRemoteCommunicationServerLLGS::Handle_jMemorySpacesInfo);
+    StringExtractorGDBRemote::eServerPacketType_jAddressSpacesInfo,
+    &GDBRemoteCommunicationServerLLGS::Handle_jAddressSpacesInfo);
                                 
   RegisterMemberFunctionHandler(StringExtractorGDBRemote::eServerPacketType_p,
                                 &GDBRemoteCommunicationServerLLGS::Handle_p);
@@ -4089,7 +4089,7 @@ GDBRemoteCommunicationServerLLGS::Handle_QMemTags(
 }
 
 GDBRemoteCommunication::PacketResult
-GDBRemoteCommunicationServerLLGS::Handle_jMemorySpacesInfo(
+GDBRemoteCommunicationServerLLGS::Handle_jAddressSpacesInfo(
     StringExtractorGDBRemote &packet) {
   Log *log = GetLog(LLDBLog::Process);
 
@@ -4102,12 +4102,12 @@ GDBRemoteCommunicationServerLLGS::Handle_jMemorySpacesInfo(
         __FUNCTION__);
     return SendErrorResponse(Status::FromErrorString("invalid process"));        
   }
-  std::vector<MemorySpaceInfo> memory_space_infos = 
-      m_current_process->GetMemorySpaceInfo();
-  if (memory_space_infos.empty())
+  std::vector<AddressSpaceInfo> address_spaces = 
+      m_current_process->GetAddressSpaces();
+  if (address_spaces.empty())
     return SendUnimplementedResponse(packet.GetStringRef().data());
   StreamGDBRemote response;
-  response.PutAsJSONArray(memory_space_infos);
+  response.PutAsJSONArray(address_spaces);
   return SendPacketNoLock(response.GetString());
 }
 
@@ -4510,8 +4510,8 @@ std::vector<std::string> GDBRemoteCommunicationServerLLGS::HandleFeatures(
     ret.push_back("gpu-plugins+");
   if (bool(plugin_features & Extension::gpu_dyld))
     ret.push_back("gpu-dyld+");
-  if (bool(plugin_features & Extension::memory_spaces))
-    ret.push_back("memory-spaces+");
+  if (bool(plugin_features & Extension::address_spaces))
+    ret.push_back("address-spaces+");
 
   // check for client features
   m_extensions_supported = {};

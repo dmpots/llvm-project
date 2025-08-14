@@ -51,23 +51,10 @@ Status MemorySpaceValidator(const char *string, void *baton) {
   if (baton == nullptr)
     return Status::FromErrorString("--space can't be used without a process");
   Process *process = static_cast<Process *>(baton);
-  if (process->GetMemorySpaceInfo(string).has_value())
-      return Status(); // Success, we found this memory space by name.
-  const auto &memory_space_infos = process->GetMemorySpaceInfos();
-  if (memory_space_infos.empty())
-    return Status::FromErrorString("process doesn't have memory spaces");
-  std::string space(string);
-  std::string error_str("invalid memory space, memory space must be one of:");
-  bool first = true;
-  for (const auto &memory_space_info: process->GetMemorySpaceInfos()) {
-    if (!first)
-      error_str.append(",");
-    error_str.append(" \"");
-    error_str.append(memory_space_info.name);
-    error_str.append("\"");
-    first = false;
-  }
-  return Status::FromErrorString(error_str.c_str());
+  if (auto info = process->GetAddressSpaceInfo(string))
+    return Status(); // Success, we found this address space by name.
+  else
+    return Status::FromError(info.takeError());
 }
 
 class OptionGroupReadMemory : public OptionGroup {
@@ -75,7 +62,7 @@ public:
   OptionGroupReadMemory()
       : m_num_per_line(1, 1), m_offset(0, 0),
         m_language_for_type(eLanguageTypeUnknown),
-        m_memory_space(nullptr, MemorySpaceValidator, nullptr) {}
+        m_address_space(nullptr, MemorySpaceValidator, nullptr) {}
 
   ~OptionGroupReadMemory() override = default;
 
@@ -118,7 +105,7 @@ public:
       break;
 
     case 'p':
-      error = m_memory_space.SetValueFromString(option_value);
+      error = m_address_space.SetValueFromString(option_value);
       break;
 
     default:
@@ -127,11 +114,6 @@ public:
     return error;
   }
 
-  std::optional<MemorySpaceInfo> GetMemorySpaceInfo(Process *process) {
-    if (process)
-      return process->GetMemorySpaceInfo(m_memory_space.GetCurrentValueAsRef());
-    return std::nullopt;
-  }
   void OptionParsingStarting(ExecutionContext *exe_ctx) override {
     m_num_per_line.Clear();
     m_output_as_binary = false;
@@ -139,9 +121,9 @@ public:
     m_force = false;
     m_offset.Clear();
     m_language_for_type.Clear();
-    m_memory_space.Clear();
-    // Update the memory space
-    m_memory_space.SetValidatorBaton(exe_ctx->GetProcessPtr());
+    m_address_space.Clear();
+    // Update the address space baton to the execution context process.
+    m_address_space.SetValidatorBaton(exe_ctx->GetProcessPtr());
   }
 
   Status FinalizeSettings(Target *target, OptionGroupFormat &format_options) {
@@ -308,7 +290,7 @@ public:
     return m_num_per_line.OptionWasSet() || m_output_as_binary ||
            m_view_as_type.OptionWasSet() || m_offset.OptionWasSet() ||
            m_language_for_type.OptionWasSet() || 
-           m_memory_space.OptionWasSet();
+           m_address_space.OptionWasSet();
   }
 
   OptionValueUInt64 m_num_per_line;
@@ -317,7 +299,7 @@ public:
   bool m_force = false;
   OptionValueUInt64 m_offset;
   OptionValueLanguage m_language_for_type;
-  OptionValueString m_memory_space;
+  OptionValueString m_address_space;
 };
 
 // Read memory from the inferior process
@@ -699,19 +681,20 @@ protected:
         return;
       }
 
-      // See if we have a memory space?
-      Process *process = m_exe_ctx.GetProcessPtr();
-      std::optional<MemorySpaceInfo> space_info =
-          m_memory_options.GetMemorySpaceInfo(process);
-      if (space_info.has_value()) {
-        // We want to read from a memory space, create an address specification
-        // with the memory space and thread if needed.
-        ThreadSP thread_sp;
-        if (space_info->is_thread_specific)
-          thread_sp = m_exe_ctx.GetThreadSP();
-        AddressSpec addr_spec(addr, space_info->value, thread_sp);
-        bytes_read = process->ReadMemory(addr_spec, data_sp->GetBytes(), 
-                                         data_sp->GetByteSize(), error);
+      // See if we have a address space?
+      if (m_memory_options.m_address_space.OptionWasSet()) {
+        Process *process = m_exe_ctx.GetProcessPtr();
+        if (process) {
+          llvm::StringRef addr_space =
+              m_memory_options.m_address_space.GetCurrentValueAsRef();
+          // Store the thread in case the address space is thread specific.
+          AddressSpec addr_spec(addr, addr_space, m_exe_ctx.GetThreadSP());
+          bytes_read = process->ReadMemory(addr_spec, data_sp->GetBytes(), 
+                                          data_sp->GetByteSize(), error);
+        } else {
+          error = Status::FromErrorString("reading from an address space "
+                                          "requires a process");
+        }
       } else {
         Address address(addr, nullptr);
         bytes_read = target->ReadMemory(address, data_sp->GetBytes(),

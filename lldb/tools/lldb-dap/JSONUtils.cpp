@@ -704,6 +704,9 @@ llvm::json::Value CreateThreadStopped(DAP &dap, lldb::SBThread &thread,
   case lldb::eStopReasonInterrupt:
     body.try_emplace("reason", "async interrupt");
     break;
+  case lldb::eStopReasonDynamicLoader:
+    body.try_emplace("reason", "dyld");
+    break;
   case lldb::eStopReasonThreadExiting:
   case lldb::eStopReasonInvalid:
   case lldb::eStopReasonNone:

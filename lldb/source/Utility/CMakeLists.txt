@@ -25,6 +25,7 @@ endif()
 
 add_lldb_library(lldbUtility NO_INTERNAL_DEPENDENCIES
   AddressableBits.cpp
+  AddressSpace.cpp
   ArchSpec.cpp
   Args.cpp
   Baton.cpp
@@ -51,7 +52,6 @@ add_lldb_library(lldbUtility NO_INTERNAL_DEPENDENCIES
   LLDBLog.cpp
   Listener.cpp
   Log.cpp
-  MemorySpace.cpp
   NameMatches.cpp
   ProcessInfo.cpp
   RealpathPrefixes.cpp

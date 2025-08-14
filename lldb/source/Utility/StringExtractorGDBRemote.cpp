@@ -338,8 +338,8 @@ StringExtractorGDBRemote::GetServerPacketType() const {
       return eServerPacketType_jLLDBTraceGetState;
     if (PACKET_STARTS_WITH("jLLDBTraceGetBinaryData:"))
       return eServerPacketType_jLLDBTraceGetBinaryData;
-    if (PACKET_MATCHES("jMemorySpacesInfo"))
-      return eServerPacketType_jMemorySpacesInfo;
+    if (PACKET_MATCHES("jAddressSpacesInfo"))
+      return eServerPacketType_jAddressSpacesInfo;
     break;
 
   case 'v':
