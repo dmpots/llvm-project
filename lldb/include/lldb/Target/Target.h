@@ -124,6 +124,8 @@ public:
 
   const char *GetDisassemblyCPU() const;
 
+  void SetDisassemblyCPU(llvm::StringRef cpu);
+
   const char *GetDisassemblyFeatures() const;
 
   InlineStrategy GetInlineStrategy() const;
@@ -1735,6 +1737,8 @@ protected:
   SectionLoadList &GetSectionLoadList() {
     return m_section_load_history.GetCurrentSectionLoadList();
   }
+
+  void UpdateArchitecture(const ArchSpec &arch_spec);
 };
 
 } // namespace lldb_private

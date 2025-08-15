@@ -29,6 +29,11 @@ class BasicAmdGpuTestCase(AmdGpuTestCaseBase):
         gpu_thread = self.gpu_process.GetThreadAtIndex(0)
         self.assertEqual(gpu_thread.GetName(), "AMD Native Shadow Thread", "GPU thread has the right name")
 
+        # The target should have the triple set correctly.
+        self.assertIn("amdgcn-amd-amdhsa", self.gpu_target.GetTriple())
+
+
+
     def test_gpu_breakpoint_hit(self):
         """Test that we can hit a breakpoint on the gpu target."""
         self.build()
