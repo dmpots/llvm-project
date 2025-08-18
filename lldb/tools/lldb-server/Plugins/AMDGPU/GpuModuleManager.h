@@ -107,9 +107,8 @@ public:
     });
 
     // Add any new code objects to the change list.
-    for (const CodeObject &obj : m_update_new) {
+    for (const CodeObject &obj : m_update_new)
       m_changes.emplace_back(obj);
-    }
 
     m_update_new.clear();
     m_update_alive.clear();
