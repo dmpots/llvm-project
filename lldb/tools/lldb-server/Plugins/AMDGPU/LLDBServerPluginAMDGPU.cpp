@@ -445,10 +445,9 @@ std::optional<GPUActions> LLDBServerPluginAMDGPU::NativeProcessIsStopping() {
 }
 
 bool LLDBServerPluginAMDGPU::HandleGPUInternalBreakpointHit(
-    const GPUInternalBreakpoinInfo &bp, bool &has_new_libraries) {
+    const GPUInternalBreakpoinInfo &bp) {
   LLDB_LOGF(GetLog(GDBRLog::Plugin), "Hit %s at address: 0x%" PRIx64,
             kGpuLoaderBreakpointIdentifier, bp.addr);
-  has_new_libraries = false;
   amd_dbgapi_breakpoint_id_t breakpoint_id{bp.breakpoind_id};
   amd_dbgapi_breakpoint_action_t action;
 
@@ -471,9 +470,6 @@ bool LLDBServerPluginAMDGPU::HandleGPUInternalBreakpointHit(
     amd_dbgapi_event_id_t resume_event_id =
         process_event_queue(AMD_DBGAPI_EVENT_KIND_BREAKPOINT_RESUME);
     amd_dbgapi_event_processed(resume_event_id);
-    if (!GetGPUProcess()->GetGPUModules().empty()) {
-      has_new_libraries = true;
-    }
     return true;
   } else {
     LLDB_LOGF(GetLog(GDBRLog::Plugin), "Unknown action: %d", action);
@@ -508,6 +504,10 @@ amd_dbgapi_event_id_t LLDBServerPluginAMDGPU::process_event_queue(
     amd_dbgapi_event_processed(event_id);
   }
   return AMD_DBGAPI_EVENT_NONE;
+}
+
+void LLDBServerPluginAMDGPU::FreeDbgApiClientMemory(void *mem) {
+  s_dbgapi_callbacks.deallocate_memory(mem);
 }
 
 bool LLDBServerPluginAMDGPU::SetGPUBreakpoint(uint64_t addr,
@@ -610,13 +610,11 @@ LLDBServerPluginAMDGPU::BreakpointWasHit(GPUPluginBreakpointHitArgs &args) {
       return llvm::createStringError(
           "Breakpoint address does not match expected value from ROCdbgapi");
     }
-    bool has_new_libraries = false;
-    bool success = HandleGPUInternalBreakpointHit(m_gpu_internal_bp.value(),
-                                                  has_new_libraries);
+    bool success = HandleGPUInternalBreakpointHit(m_gpu_internal_bp.value());
     assert(success);
-    if (has_new_libraries) {
+    if (GetGPUProcess()->HasDyldChangesToReport()) {
       response.actions.wait_for_gpu_process_to_resume = true;
-      auto process = m_gdb_server->GetCurrentProcess();
+      auto *process = m_gdb_server->GetCurrentProcess();
       ThreadAMDGPU *thread = (ThreadAMDGPU *)process->GetCurrentThread();
       thread->SetStopReason(lldb::eStopReasonDynamicLoader);
       process->Halt();
