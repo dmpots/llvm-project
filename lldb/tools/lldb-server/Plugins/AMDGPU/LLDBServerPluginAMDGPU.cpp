@@ -231,7 +231,7 @@ bool LLDBServerPluginAMDGPU::initRocm() {
 }
 
 bool LLDBServerPluginAMDGPU::processGPUEvent() {
-  LLDB_LOGF(GetLog(GDBRLog::Plugin), "processGPUEvent");
+  LLDB_LOGF(GetLog(GDBRLog::Plugin), "processGPUEvent start");
   char buf[256];
   ssize_t bytesRead = 0;
   bool result = false;
@@ -257,6 +257,7 @@ bool LLDBServerPluginAMDGPU::processGPUEvent() {
     assert(status == AMD_DBGAPI_STATUS_SUCCESS);
     break;
   } while (true);
+  LLDB_LOGF(GetLog(GDBRLog::Plugin), "processGPUEvent end (result=%d)", result);
   return result;
 }
 
@@ -617,11 +618,14 @@ LLDBServerPluginAMDGPU::BreakpointWasHit(GPUPluginBreakpointHitArgs &args) {
     bool success = HandleGPUInternalBreakpointHit(m_gpu_internal_bp.value());
     assert(success);
     if (GetGPUProcess()->HasDyldChangesToReport()) {
-      response.actions.wait_for_gpu_process_to_resume = true;
-      auto *process = m_gdb_server->GetCurrentProcess();
-      ThreadAMDGPU *thread = (ThreadAMDGPU *)process->GetCurrentThread();
-      thread->SetStopReason(lldb::eStopReasonDynamicLoader);
-      process->Halt();
+      if (GetGPUProcess()->IsRunning()) {
+        response.actions.wait_for_gpu_process_to_resume = true;
+        response.actions.stop_id = GetGPUProcess()->GetNextStopID();
+        auto *process = m_gdb_server->GetCurrentProcess();
+        ThreadAMDGPU *thread = (ThreadAMDGPU *)process->GetCurrentThread();
+        thread->SetStopReason(lldb::eStopReasonDynamicLoader);
+        process->Halt();
+      }
     }
   }
   return response;
