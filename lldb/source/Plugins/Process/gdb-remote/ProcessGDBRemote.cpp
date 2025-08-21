@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Host/Config.h"
+#include "lldb/lldb-enumerations.h"
 
 #include <cerrno>
 #include <cstdlib>
@@ -6404,8 +6405,7 @@ void ProcessGDBRemote::SyncState::SetStateStopped(uint64_t stop_id) {
 
 void ProcessGDBRemote::SyncState::DidResume() {
   Log *log = GetLog(GDBRLog::Plugin);
-  std::lock_guard<std::mutex> guard(m_mutex);
-  m_state = lldb::eStateRunning;
+  SetStateImpl(m_stop_id.value_or(0), lldb::eStateRunning);
   LLDB_LOG(log, "pid = {}, SyncState::{}() m_stop_id = {}, m_state = {}", 
            m_process.GetID(), __FUNCTION__,  m_stop_id, 
            StateAsCString(m_state.value_or(lldb::eStateInvalid)));
