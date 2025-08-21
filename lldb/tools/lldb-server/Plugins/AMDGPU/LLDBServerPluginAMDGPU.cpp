@@ -364,8 +364,12 @@ LLDBServerPluginAMDGPU::CreateConnection() {
 }
 
 std::optional<GPUActions> LLDBServerPluginAMDGPU::NativeProcessIsStopping() {
+  static bool initialized = false;
   Log *log = GetLog(GDBRLog::Plugin);
-  if (!m_is_connected) {
+  LLDB_LOGF(log, "%s called: %d", __FUNCTION__, initialized);
+  if (!initialized) {
+    LLDB_LOGF(log, "%s initializing", __FUNCTION__);
+    initialized = true;
     initRocm();
     ProcessManagerAMDGPU *manager =
         (ProcessManagerAMDGPU *)m_process_manager_up.get();
@@ -590,8 +594,8 @@ LLDBServerPluginAMDGPU::BreakpointWasHit(GPUPluginBreakpointHitArgs &args) {
   const auto bp_identifier = args.breakpoint.identifier;
   llvm::raw_string_ostream os(json_string);
   os << toJSON(args);
-  LLDB_LOGF(log, "LLDBServerPluginAMDGPU::BreakpointWasHit(\"%s\"):\nJSON:\n%s",
-            bp_identifier.c_str(), json_string.c_str());
+  LLDB_LOGF(log, "LLDBServerPluginAMDGPU::BreakpointWasHit(\"%d\"):\nJSON:\n%s",
+            bp_identifier, json_string.c_str());
 
   GPUPluginBreakpointHitResponse response;
   response.actions.plugin_name = GetPluginName();
