@@ -44,6 +44,8 @@ using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::process_gdb_remote;
 
+static int id = 0;
+
 // GDBRemoteCommunication constructor
 GDBRemoteCommunication::GDBRemoteCommunication(llvm::StringRef name)
     : Communication(),
@@ -54,7 +56,7 @@ GDBRemoteCommunication::GDBRemoteCommunication(llvm::StringRef name)
 #endif
       m_echo_number(0), m_supports_qEcho(eLazyBoolCalculate), m_history(512),
       m_send_acks(true), m_is_platform(false),
-      m_compression_type(CompressionType::None), m_listen_url(), m_name(name) {
+      m_compression_type(CompressionType::None), m_listen_url(), m_name((name + std::to_string(id++)).str()) {
 }
 
 // Destructor
