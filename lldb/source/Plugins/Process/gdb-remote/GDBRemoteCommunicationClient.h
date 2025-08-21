@@ -26,6 +26,7 @@
 #include "lldb/Utility/GDBRemote.h"
 #include "lldb/Utility/GPUGDBRemotePackets.h"
 #include "lldb/Utility/ProcessInfo.h"
+#include "lldb/Utility/StringExtractorGDBRemote.h"
 #include "lldb/Utility/StructuredData.h"
 #include "lldb/Utility/TraceGDBRemotePackets.h"
 #include "lldb/Utility/UUID.h"
@@ -270,6 +271,10 @@ public:
   bool HasAnyVContSupport() { return GetVContSupported('a'); }
 
   bool GetStopReply(StringExtractorGDBRemote &response);
+  
+  std::optional<StringExtractorGDBRemote> GetLaunchResponse() {
+    return m_launch_response;
+  }
 
   bool GetThreadStopInfo(lldb::tid_t tid, StringExtractorGDBRemote &response);
 
@@ -659,6 +664,7 @@ protected:
   bool m_qXfer_memory_map_loaded = false;
   // Used to pass a file descriptor from the GDB server back to the client.
   std::optional<int> m_file_passing_fd;
+  std::optional<StringExtractorGDBRemote> m_launch_response;
   bool GetCurrentProcessInfo(bool allow_lazy_pid = true);
 
   bool GetGDBServerVersion();

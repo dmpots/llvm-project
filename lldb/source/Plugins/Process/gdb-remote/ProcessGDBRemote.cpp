@@ -821,7 +821,14 @@ Status ProcessGDBRemote::DoLaunch(lldb_private::Module *exe_module,
     }
 
     StringExtractorGDBRemote response;
-    if (m_gdb_comm.GetStopReply(response)) {
+    if (m_gdb_comm.GetLaunchResponse()) {
+      auto launch_response = *m_gdb_comm.GetLaunchResponse();
+      if (launch_response.GetChar() == 'T' || launch_response.GetChar() == 'S') {
+        response = launch_response;
+      }
+    }
+
+    if (response.IsNormalResponse() || m_gdb_comm.GetStopReply(response)) {
       SetLastStopPacket(response);
 
       const ArchSpec &process_arch = m_gdb_comm.GetProcessArchitecture();

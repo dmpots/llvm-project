@@ -917,6 +917,8 @@ lldb::pid_t GDBRemoteCommunicationClient::GetCurrentProcessID(bool allow_lazy) {
 }
 
 llvm::Error GDBRemoteCommunicationClient::LaunchProcess(const Args &args) {
+  m_launch_response.reset();
+
   if (!args.GetArgumentAtIndex(0))
     return llvm::createStringError(llvm::inconvertibleErrorCode(),
                                    "Nothing to launch");
@@ -934,6 +936,8 @@ llvm::Error GDBRemoteCommunicationClient::LaunchProcess(const Args &args) {
         PacketResult::Success)
       return llvm::createStringError(llvm::inconvertibleErrorCode(),
                                      "Sending vRun packet failed");
+
+    m_launch_response = response;
 
     if (response.IsErrorResponse())
       return response.GetStatus().ToError();
