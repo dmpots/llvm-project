@@ -53,7 +53,6 @@ public:
                          MainLoop &main_loop);
   ~LLDBServerPluginAMDGPU() override;
   llvm::StringRef GetPluginName() override;
-  int GetEventFileDescriptorAtIndex(size_t idx) override;
   bool HandleEventFileDescriptorEvent(int fd) override;
   GPUActions GetInitializeActions() override;
   std::optional<struct GPUActions> NativeProcessIsStopping() override;
@@ -94,8 +93,6 @@ private:
   bool SetGPUBreakpoint(uint64_t addr, const uint8_t *bp_instruction,
                         size_t size);
 
-  // Used with a socketpair to get events on the native ptrace event queue.
-  int m_fds[2] = {-1, -1};
   Status m_main_loop_status;
   MainLoopBase::ReadHandleUP m_gpu_event_read_up;
   std::vector<MainLoopBase::ReadHandleUP> m_read_handles;

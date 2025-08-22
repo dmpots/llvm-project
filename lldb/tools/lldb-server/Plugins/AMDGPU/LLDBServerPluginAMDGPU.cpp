@@ -143,32 +143,9 @@ LLDBServerPluginAMDGPU::LLDBServerPluginAMDGPU(
       m_main_loop, *m_process_manager_up, "amd-gpu.server"));
 }
 
-LLDBServerPluginAMDGPU::~LLDBServerPluginAMDGPU() { CloseFDs(); }
+LLDBServerPluginAMDGPU::~LLDBServerPluginAMDGPU() { }
 
 llvm::StringRef LLDBServerPluginAMDGPU::GetPluginName() { return "amd-gpu"; }
-
-void LLDBServerPluginAMDGPU::CloseFDs() {
-  if (m_fds[0] != -1) {
-    close(m_fds[0]);
-    m_fds[0] = -1;
-  }
-  if (m_fds[1] != -1) {
-    close(m_fds[1]);
-    m_fds[1] = -1;
-  }
-}
-
-int LLDBServerPluginAMDGPU::GetEventFileDescriptorAtIndex(size_t idx) {
-  if (idx != 0)
-    return -1;
-  if (m_fds[0] == -1) {
-    if (socketpair(AF_UNIX, SOCK_STREAM, 0, m_fds) == -1) {
-      m_fds[0] = -1;
-      m_fds[1] = -1;
-    }
-  }
-  return m_fds[0];
-}
 
 bool LLDBServerPluginAMDGPU::initRocm() {
   // Initialize AMD Debug API with callbacks
@@ -264,41 +241,6 @@ bool LLDBServerPluginAMDGPU::HandleEventFileDescriptorEvent(int fd) {
   return processGPUEvent();
 }
 
-void LLDBServerPluginAMDGPU::AcceptAndMainLoopThread(
-    std::unique_ptr<TCPSocket> listen_socket_up) {
-  Log *log = GetLog(GDBRLog::Plugin);
-  LLDB_LOGF(log, "%s spawned", __PRETTY_FUNCTION__);
-  Socket *socket = nullptr;
-  Status error = listen_socket_up->Accept(std::chrono::seconds(30), socket);
-  // Scope for lock guard.
-  {
-    // Protect access to m_is_listening and m_is_connected.
-    std::lock_guard<std::mutex> guard(m_connect_mutex);
-    m_is_listening = false;
-    if (error.Fail()) {
-      LLDB_LOGF(log, "%s error returned from Accept(): %s", __PRETTY_FUNCTION__,
-                error.AsCString());
-      return;
-    }
-    m_is_connected = true;
-  }
-
-  LLDB_LOGF(log, "%s initializing connection", __PRETTY_FUNCTION__);
-  std::unique_ptr<Connection> connection_up(
-      new ConnectionFileDescriptor(std::unique_ptr<Socket>(socket)));
-  m_gdb_server->InitializeConnection(std::move(connection_up));
-  LLDB_LOGF(log, "%s running main loop", __PRETTY_FUNCTION__);
-  m_main_loop_status = m_main_loop.Run();
-  LLDB_LOGF(log, "%s main loop exited!", __PRETTY_FUNCTION__);
-  if (m_main_loop_status.Fail()) {
-    LLDB_LOGF(log, "%s main loop exited with an error: %s", __PRETTY_FUNCTION__,
-              m_main_loop_status.AsCString());
-  }
-  // Protect access to m_is_connected.
-  std::lock_guard<std::mutex> guard(m_connect_mutex);
-  m_is_connected = false;
-}
-
 std::optional<GPUPluginConnectionInfo>
 LLDBServerPluginAMDGPU::CreateConnection() {
   std::lock_guard<std::mutex> guard(m_connect_mutex);
@@ -322,9 +264,6 @@ LLDBServerPluginAMDGPU::CreateConnection() {
     connection_info.connect_url =
         llvm::formatv("connect://localhost:{}", listen_port);
     LLDB_LOGF(log, "%s listening to %u", __PRETTY_FUNCTION__, listen_port);
-    // std::thread t(&LLDBServerPluginAMDGPU::AcceptAndMainLoopThread, this,
-    //               std::move(*sock));
-    // t.detach();
 
     // Store the socket in the member variable to keep it alive
     m_listen_socket = std::move(*sock);
@@ -336,7 +275,7 @@ LLDBServerPluginAMDGPU::CreateConnection() {
             m_main_loop, [this](std::unique_ptr<Socket> socket) {
               Log *log = GetLog(GDBRLog::Plugin);
               LLDB_LOGF(log,
-                        "LLDBServerPluginAMDGPU::AcceptAndMainLoopThread() "
+                        "LLDBServerPluginAMDGPU::CreateConnection() "
                         "initializing connection");
               std::unique_ptr<Connection> connection_up(
                   new ConnectionFileDescriptor(std::move(socket)));
