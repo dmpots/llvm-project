@@ -590,8 +590,8 @@ LLDBServerPluginAMDGPU::BreakpointWasHit(GPUPluginBreakpointHitArgs &args) {
   const auto bp_identifier = args.breakpoint.identifier;
   llvm::raw_string_ostream os(json_string);
   os << toJSON(args);
-  LLDB_LOGF(log, "LLDBServerPluginAMDGPU::BreakpointWasHit(\"%s\"):\nJSON:\n%s",
-            bp_identifier.c_str(), json_string.c_str());
+  LLDB_LOGF(log, "LLDBServerPluginAMDGPU::BreakpointWasHit(\"%d\"):\nJSON:\n%s",
+            bp_identifier, json_string.c_str());
 
   GPUPluginBreakpointHitResponse response;
   response.actions.plugin_name = GetPluginName();
