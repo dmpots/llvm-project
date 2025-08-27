@@ -63,7 +63,7 @@ public:
     std::optional<uint64_t> m_stop_id;
     std::optional<lldb::StateType> m_state;
 
-    void SetStateImpl(uint64_t stop_id,  lldb::StateType state) {
+    void SetStateImpl(std::optional<uint64_t> stop_id,  lldb::StateType state) {
       // Scope to ensure the lock is released prior to calling notify.
       {
         std::lock_guard<std::mutex> guard(m_mutex);
