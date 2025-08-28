@@ -83,6 +83,7 @@ add_lldb_tool(lldb-server
       lldbInitialization
       lldbVersion
       ${LLDB_PLUGINS}
+      lldbServerPluginUtils
       lldbPluginInstructionARM
       lldbPluginInstructionLoongArch
       lldbPluginInstructionMIPS
