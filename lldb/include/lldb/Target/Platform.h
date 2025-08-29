@@ -978,6 +978,28 @@ public:
 
   LocateModuleCallback GetLocateModuleCallback() const;
 
+  /// Allow platforms to read virtual registers.
+  ///
+  /// Some platforms support virtual register numbering schemes in DWARF or 
+  /// other runtime information. This allows the platform to read these values
+  /// seamlessly in DWARF expressions and Unwind information without requiring
+  /// their compilers to be updated to support standard DWARF. Some virtual
+  /// registers may be read locations in memory, some might end up being in
+  /// standard registers, and some might be computed values. Some virtual 
+  /// register also might require the current PC from the current stack frame
+  /// so the correct value can be computed.
+  ///
+  /// \return
+  ///   A error object indicating success or failure only if the current 
+  ///   supports virtual registers. std::nullopt if the platform does not 
+  ///   support virtual registers.
+  virtual std::optional<llvm::Error>
+  ReadVirtualRegister(lldb::StackFrameSP frame_sp,
+                      lldb::RegisterKind reg_kind,
+                      uint32_t reg_num,
+                      RegisterValue &reg_value) {
+    return std::nullopt; // This platform doesn't support virtual registers.
+  }
 protected:
   /// Create a list of ArchSpecs with the given OS and a architectures. The
   /// vendor field is left as an "unspecified unknown".
