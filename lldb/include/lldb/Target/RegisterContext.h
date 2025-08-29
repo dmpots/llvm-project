@@ -46,7 +46,8 @@ public:
   /// the appropriate RegisterInfo. Otherwise this function will check if the
   /// platform supports virtual register numbers for the specified kind and 
   /// attempt to resolve the virtual register value through the platform.
-  virtual llvm::Error ReadRegister(lldb::RegisterKind kind, uint32_t num,
+  virtual llvm::Error ReadRegister(lldb::RegisterKind kind, 
+                                   lldb::regnum64_t num,
                                    RegisterValue &reg_value);
 
   virtual bool ReadRegister(const RegisterInfo *reg_info,

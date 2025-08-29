@@ -94,7 +94,8 @@ void DWARFExpression::SetRegisterKind(RegisterKind reg_kind) {
 llvm::Error
 DWARFExpression::ReadRegisterValueAsScalar(RegisterContext *reg_ctx,
                                            lldb::RegisterKind reg_kind,
-                                           uint32_t reg_num, Value &value) {
+                                           lldb::regnum64_t reg_num, 
+                                           Value &value) {
   if (reg_ctx == nullptr)
     return llvm::createStringError("no register context in frame");
 
@@ -969,7 +970,7 @@ llvm::Expected<Value> DWARFExpression::Evaluate(
 
   lldb::offset_t offset = 0;
   Value tmp;
-  uint32_t reg_num;
+  lldb::regnum64_t reg_num;
 
   /// Insertion point for evaluating multi-piece expression.
   uint64_t op_piece_offset = 0;
@@ -2384,10 +2385,10 @@ bool DWARFExpression::MatchesOperand(
     offset = opcodes.GetSLEB128(&op_offset);
     reg = reg_ctx_sp->GetRegisterInfo(m_reg_kind, opcode - DW_OP_breg0);
   } else if (opcode == DW_OP_regx) {
-    uint32_t reg_num = static_cast<uint32_t>(opcodes.GetULEB128(&op_offset));
+    lldb::regnum64_t reg_num = opcodes.GetULEB128(&op_offset);
     reg = reg_ctx_sp->GetRegisterInfo(m_reg_kind, reg_num);
   } else if (opcode == DW_OP_bregx) {
-    uint32_t reg_num = static_cast<uint32_t>(opcodes.GetULEB128(&op_offset));
+    lldb::regnum64_t reg_num = opcodes.GetULEB128(&op_offset);
     offset = opcodes.GetSLEB128(&op_offset);
     reg = reg_ctx_sp->GetRegisterInfo(m_reg_kind, reg_num);
   } else {
