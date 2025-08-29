@@ -465,7 +465,7 @@ bool RegisterContext::ConvertBetweenRegisterKinds(lldb::RegisterKind source_rk,
 }
 
 llvm::Error RegisterContext::ReadRegister(lldb::RegisterKind kind, 
-                                          uint32_t num, 
+                                          lldb::regnum64_t num, 
                                           RegisterValue &reg_value) {
   auto create_default_error = [kind, num]() {
     return llvm::createStringError(
