@@ -38,9 +38,6 @@ Status ProcessAMDGPU::Resume(const ResumeActionList &resume_actions) {
   SetState(StateType::eStateRunning, true);
   ThreadAMDGPU *thread = (ThreadAMDGPU *)GetCurrentThread();
   thread->GetRegisterContext().InvalidateAllRegisters();
-  // if (!m_debugger->resume_process()) {
-  //   return Status::FromErrorString("resume_process failed");
-  // }
   return Status();
 }
 
@@ -92,7 +89,6 @@ size_t ProcessAMDGPU::UpdateThreads() {
   if (m_threads.empty()) {
     lldb::tid_t tid = 3456;
     m_threads.push_back(std::make_unique<ThreadAMDGPU>(*this, 3456));
-    // ThreadAMDGPU &thread = static_cast<ThreadAMDGPU &>(*m_threads.back());
     SetCurrentThreadID(tid);
   }
   return m_threads.size();
@@ -288,7 +284,6 @@ bool ProcessAMDGPU::handleWaveStop(amd_dbgapi_event_id_t eventId) {
     return false;
   }
   if ((stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_BREAKPOINT) != 0) {
-    // auto ip = getPC();
     uint64_t pc;
     status = amd_dbgapi_wave_get_info(wave_id, AMD_DBGAPI_WAVE_INFO_PC,
                                       sizeof(pc), &pc);
@@ -314,9 +309,6 @@ bool ProcessAMDGPU::handleWaveStop(amd_dbgapi_event_id_t eventId) {
                 status);
       exit(-1);
     }
-    // RemoveGPUBreakpoint(pc);
-    // auto thread = std::make_unique<ThreadAMDGPU>(*this, wave_id.handle,
-    // wave_id); thread->SetStopReason(lldb::eStopReasonBreakpoint);
     m_wave_ids.emplace_back(wave_id);
 
     if (m_threads.size() == 1 && m_gpu_state == State::Initializing) {
@@ -371,28 +363,6 @@ bool ProcessAMDGPU::handleDebugEvent(amd_dbgapi_event_id_t eventId,
   if (eventKind == AMD_DBGAPI_EVENT_KIND_NONE)
     return result;
 
-  amd_dbgapi_runtime_state_t runtimeState = AMD_DBGAPI_RUNTIME_STATE_UNLOADED;
-
-  // Get runtime state for the event
-  amd_dbgapi_status_t status =
-      amd_dbgapi_event_get_info(eventId, AMD_DBGAPI_EVENT_INFO_RUNTIME_STATE,
-                                sizeof(runtimeState), &runtimeState);
-
-  if (status == AMD_DBGAPI_STATUS_SUCCESS) {
-    // Handle different runtime states
-    switch (runtimeState) {
-    case AMD_DBGAPI_RUNTIME_STATE_LOADED_SUCCESS:
-      LLDB_LOGF(GetLog(GDBRLog::Plugin), "Runtime loaded successfully");
-      break;
-    case AMD_DBGAPI_RUNTIME_STATE_LOADED_ERROR_RESTRICTION:
-      LLDB_LOGF(GetLog(GDBRLog::Plugin), "Runtime load restricted");
-      break;
-    case AMD_DBGAPI_RUNTIME_STATE_UNLOADED:
-      LLDB_LOGF(GetLog(GDBRLog::Plugin), "Runtime unloaded");
-      break;
-    }
-  }
-
   // Handle event kinds
   switch (eventKind) {
   case AMD_DBGAPI_EVENT_KIND_WAVE_STOP: {
@@ -404,29 +374,28 @@ bool ProcessAMDGPU::handleDebugEvent(amd_dbgapi_event_id_t eventId,
     break;
   }
 
-    // case AMD_DBGAPI_EVENT_KIND_BREAKPOINT: {
-    //   std::cout << "Breakpoint event received" << std::endl;
-
-    //   // Get breakpoint information for this event
-    //   amd_dbgapi_breakpoint_id_t breakpointId;
-    //   if (amd_dbgapi_event_get_info(eventId,
-    //   AMD_DBGAPI_EVENT_INFO_BREAKPOINT,
-    //                                 sizeof(breakpointId), &breakpointId)
-    //                                 ==
-    //       AMD_DBGAPI_STATUS_SUCCESS) {
-    //     std::cout << "Breakpoint ID: " << breakpointId << std::endl;
-    //   }
-    //   break;
-    // }
-
   case AMD_DBGAPI_EVENT_KIND_RUNTIME: {
-    LLDB_LOGF(GetLog(GDBRLog::Plugin),
-              "Runtime event received, runtimeState: %d", runtimeState);
+    LLDB_LOGF(GetLog(GDBRLog::Plugin), "Runtime event received.");
+    // Get runtime state for the event
+    amd_dbgapi_runtime_state_t runtimeState = AMD_DBGAPI_RUNTIME_STATE_UNLOADED;
+    amd_dbgapi_status_t status =
+        amd_dbgapi_event_get_info(eventId, AMD_DBGAPI_EVENT_INFO_RUNTIME_STATE,
+                                  sizeof(runtimeState), &runtimeState);
 
-    // Additional runtime-specific handling based on state
-    if (runtimeState == AMD_DBGAPI_RUNTIME_STATE_LOADED_SUCCESS) {
-      // Runtime is now loaded, we can set breakpoints or perform other
-      // initialization
+    if (status == AMD_DBGAPI_STATUS_SUCCESS) {
+      // Handle different runtime states
+      switch (runtimeState) {
+      case AMD_DBGAPI_RUNTIME_STATE_LOADED_SUCCESS:
+        LLDB_LOGF(GetLog(GDBRLog::Plugin), "Runtime loaded successfully");
+        m_debugger->GpuRuntimeDidLoad();
+        break;
+      case AMD_DBGAPI_RUNTIME_STATE_LOADED_ERROR_RESTRICTION:
+        LLDB_LOGF(GetLog(GDBRLog::Plugin), "Runtime load restricted");
+        break;
+      case AMD_DBGAPI_RUNTIME_STATE_UNLOADED:
+        LLDB_LOGF(GetLog(GDBRLog::Plugin), "Runtime unloaded");
+        break;
+      }
     }
     break;
   }
