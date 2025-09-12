@@ -11,14 +11,17 @@
 
 #include "Plugins/Utils/Utils.h"
 #include "RegisterContextAMDGPU.h"
+#include "WaveAMDGPU.h"
 #include "lldb/Host/common/NativeThreadProtocol.h"
 #include "lldb/lldb-private-forward.h"
 #include <amd-dbgapi/amd-dbgapi.h>
+#include <memory>
 #include <string>
 
 namespace lldb_private {
 namespace lldb_server {
 class ProcessAMDGPU;
+class WaveAMDGPU;
 
 class NativeProcessLinux;
 
@@ -26,7 +29,11 @@ class ThreadAMDGPU : public NativeThreadProtocol {
   friend class ProcessAMDGPU;
 
 public:
-  ThreadAMDGPU(ProcessAMDGPU &process, lldb::tid_t tid, std::optional<amd_dbgapi_wave_id_t> wave_id = std::nullopt);
+  ThreadAMDGPU(ProcessAMDGPU &process, lldb::tid_t tid,
+               std::shared_ptr<WaveAMDGPU> wave);
+
+  static std::unique_ptr<ThreadAMDGPU>
+  CreateGPUShadowThread(ProcessAMDGPU &process);
 
   // NativeThreadProtocol Interface
   std::string GetName() override;
@@ -57,9 +64,15 @@ public:
 
   const ProcessAMDGPU &GetProcess() const;
 
-  std::optional<amd_dbgapi_wave_id_t> GetWaveId() const {
-    return m_wave_id;
+  amd_dbgapi_wave_id_t GetWaveID() const {
+    if (!m_wave)
+      return AMD_DBGAPI_WAVE_NONE;
+    return m_wave->GetWaveID();
   }
+
+  WaveAMDGPU *GetWave() const { return m_wave.get(); }
+
+  bool IsShadowThread() const { return m_wave == nullptr; }
 
 private:
   // Member Variables
@@ -68,7 +81,7 @@ private:
   std::string m_description = "";
   RegisterContextAMDGPU m_reg_context;
   std::string m_stop_description;
-  std::optional<amd_dbgapi_wave_id_t> m_wave_id;
+  std::shared_ptr<WaveAMDGPU> m_wave;
 };
 
 using AMDGPUThreadRange = GPUThreadRange<ThreadAMDGPU>;

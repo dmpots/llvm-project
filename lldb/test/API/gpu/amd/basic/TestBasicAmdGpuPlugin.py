@@ -8,6 +8,8 @@ import lldbsuite.test.lldbutil as lldbutil
 from lldbsuite.test.lldbtest import *
 from amdgpu_testcase import *
 
+SHADOW_THREAD_NAME = "AMD Native Shadow Thread"
+
 
 class BasicAmdGpuTestCase(AmdGpuTestCaseBase):
     def test_gpu_target_created_on_demand(self):
@@ -27,7 +29,9 @@ class BasicAmdGpuTestCase(AmdGpuTestCaseBase):
         # Make sure the GPU target was created and has the default thread.
         self.assertEqual(self.dbg.GetNumTargets(), 2, "There are two targets")
         gpu_thread = self.gpu_process.GetThreadAtIndex(0)
-        self.assertEqual(gpu_thread.GetName(), "AMD Native Shadow Thread", "GPU thread has the right name")
+        self.assertEqual(
+            gpu_thread.GetName(), SHADOW_THREAD_NAME, "GPU thread has the right name"
+        )
 
         # The target should have the triple set correctly.
         self.assertIn("amdgcn-amd-amdhsa", self.gpu_target.GetTriple())
@@ -44,6 +48,31 @@ class BasicAmdGpuTestCase(AmdGpuTestCaseBase):
             source, "// GPU BREAKPOINT", "// CPU BREAKPOINT - BEFORE LAUNCH"
         )
         self.assertNotEqual(None, gpu_threads, "GPU should be stopped at breakpoint")
+
+    def test_num_threads(self):
+        """Test that we get the expected number of threads."""
+        self.build()
+
+        # GPU breakpoint should get hit by at least one thread.
+        source = "hello_world.hip"
+        gpu_threads_at_bp = self.run_to_gpu_breakpoint(
+            source, "// GPU BREAKPOINT", "// CPU BREAKPOINT - BEFORE LAUNCH"
+        )
+        self.assertNotEqual(
+            None, gpu_threads_at_bp, "GPU should be stopped at breakpoint"
+        )
+
+        # We launch one thread for each character in the output string.
+        gpu_threads = self.gpu_process.threads
+        num_expected_threads = len("Hello, world!")
+        self.assertEqual(len(gpu_threads), num_expected_threads)
+
+        # The shadow thread should not be listed once we have real threads
+        for thread in gpu_threads:
+            self.assertNotEqual(SHADOW_THREAD_NAME, thread.GetName())
+
+        # All threads should be stopped at the breakpoint.
+        self.assertEqual(len(gpu_threads_at_bp), num_expected_threads)
 
     def test_no_unexpected_stop(self):
         """Test that we do not unexpectedly hit a stop in the debugger when
