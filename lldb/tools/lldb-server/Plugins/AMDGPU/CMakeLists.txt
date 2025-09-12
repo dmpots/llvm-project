@@ -9,6 +9,7 @@ add_lldb_library(lldbServerPluginAMDGPU
   ProcessAMDGPU.cpp
   RegisterContextAMDGPU.cpp
   ThreadAMDGPU.cpp
+  WaveAMDGPU.cpp
 
   LINK_LIBS
     amd-dbgapi
