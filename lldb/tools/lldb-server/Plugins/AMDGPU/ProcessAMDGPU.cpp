@@ -88,9 +88,8 @@ lldb::addr_t ProcessAMDGPU::GetSharedLibraryInfoAddress() {
 
 size_t ProcessAMDGPU::UpdateThreads() {
   if (m_threads.empty()) {
-    lldb::tid_t tid = 3456;
-    m_threads.push_back(std::make_unique<ThreadAMDGPU>(*this, 3456));
-    SetCurrentThreadID(tid);
+    m_threads.push_back(ThreadAMDGPU::CreateGPUShadowThread(*this));
+    SetCurrentThreadID(m_threads.back()->GetID());
   }
   return m_threads.size();
 }
@@ -438,7 +437,8 @@ bool ProcessAMDGPU::handleDebugEvent(amd_dbgapi_event_id_t eventId,
 }
 
 void ProcessAMDGPU::AddThread(amd_dbgapi_wave_id_t wave_id) {
-  auto thread = std::make_unique<ThreadAMDGPU>(*this, wave_id.handle, wave_id);
+  std::shared_ptr<WaveAMDGPU> wave = std::make_shared<WaveAMDGPU>(wave_id);
+  auto thread = std::make_unique<ThreadAMDGPU>(*this, wave_id.handle, wave);
   thread->SetStopReason(lldb::eStopReasonBreakpoint);
   m_threads.emplace_back(std::move(thread));
 }

@@ -10,6 +10,7 @@
 #define LLDB_TOOLS_LLDB_SERVER_PROCESSAMDGPU_H
 
 #include "GpuModuleManager.h"
+#include "WaveAMDGPU.h"
 #include "lldb/Host/common/NativeProcessProtocol.h"
 #include "lldb/Utility/ProcessInfo.h"
 #include <amd-dbgapi/amd-dbgapi.h>
@@ -107,6 +108,9 @@ public:
   };
   State m_gpu_state = State::Initializing;
   std::vector<amd_dbgapi_wave_id_t> m_wave_ids;
+private:
+  std::unordered_map<uint64_t, std::shared_ptr<WaveAMDGPU>> m_waves; // TODO: use amd_dbgapi_wave_id_t
+  void UpdateWaves();
 };
 
 class ProcessManagerAMDGPU : public NativeProcessProtocol::Manager {

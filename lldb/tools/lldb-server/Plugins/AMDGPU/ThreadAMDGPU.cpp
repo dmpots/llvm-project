@@ -12,12 +12,18 @@ using namespace lldb_private;
 using namespace lldb_server;
 
 ThreadAMDGPU::ThreadAMDGPU(ProcessAMDGPU &process, lldb::tid_t tid,
-                           std::optional<amd_dbgapi_wave_id_t> wave_id)
+                           std::shared_ptr<WaveAMDGPU> wave)
     : NativeThreadProtocol(process, tid), m_reg_context(*this),
-      m_wave_id(wave_id) {
+      m_wave(wave) {
   m_stop_info.reason = lldb::eStopReasonSignal;
   m_stop_info.signo = SIGTRAP;
 }
+
+std::unique_ptr<ThreadAMDGPU> ThreadAMDGPU::CreateGPUShadowThread(ProcessAMDGPU &process) {
+  enum {AMDGPU_SHADOW_THREAD_ID = 0};
+  return std::make_unique<ThreadAMDGPU>(process, AMDGPU_SHADOW_THREAD_ID, nullptr);
+}
+
 
 // NativeThreadProtocol Interface
 std::string ThreadAMDGPU::GetName() {
