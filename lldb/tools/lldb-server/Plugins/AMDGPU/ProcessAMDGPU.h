@@ -9,7 +9,10 @@
 #ifndef LLDB_TOOLS_LLDB_SERVER_PROCESSAMDGPU_H
 #define LLDB_TOOLS_LLDB_SERVER_PROCESSAMDGPU_H
 
+#include "AmdDbgApiHelpers.h"
 #include "GpuModuleManager.h"
+#include "ThreadAMDGPU.h"
+#include "WaveAMDGPU.h"
 #include "lldb/Host/common/NativeProcessProtocol.h"
 #include "lldb/Utility/ProcessInfo.h"
 #include <amd-dbgapi/amd-dbgapi.h>
@@ -94,8 +97,11 @@ public:
   bool HasDyldChangesToReport() const {
     return m_gpu_module_manager.HasChangedCodeObjects();
   }
-  void AddThread(amd_dbgapi_wave_id_t wave_id);
-  
+
+  amd_dbgapi_process_id_t GetDbgApiProcessID() const {
+    return amd_dbgapi_process_id_t{m_pid};
+  }
+
   LLDBServerPluginAMDGPU* m_debugger = nullptr;
   GpuModuleManager m_gpu_module_manager;
 
@@ -107,6 +113,14 @@ public:
   };
   State m_gpu_state = State::Initializing;
   std::vector<amd_dbgapi_wave_id_t> m_wave_ids;
+
+private:
+  WaveIdMap<std::shared_ptr<WaveAMDGPU>> m_waves;
+  WaveIdList UpdateWaves();
+  llvm::Expected<DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t>>
+  GetWaveList(size_t *count, amd_dbgapi_changed_t *changed);
+  llvm::Expected<DbgApiWaveInfo> GetWaveInfo(amd_dbgapi_wave_id_t wave_id);
+  void UpdateThreadListFromWaves();
 };
 
 class ProcessManagerAMDGPU : public NativeProcessProtocol::Manager {

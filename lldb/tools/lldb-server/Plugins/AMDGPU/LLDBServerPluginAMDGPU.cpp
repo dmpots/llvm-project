@@ -223,6 +223,7 @@ Status LLDBServerPluginAMDGPU::AttachAmdDbgApi() {
     return HandleAmdDbgApiAttachError(error.AsCString(),
                                       AMD_DBGAPI_STATUS_ERROR);
   }
+  GetGPUProcess()->UpdateThreads();
 
   // Process all pending events
   LLDB_LOGF(log, "%s Processing any pending dbgapi events", __FUNCTION__);
@@ -301,17 +302,15 @@ bool LLDBServerPluginAMDGPU::processGPUEvent() {
     } while (bytesRead <= 0);
 
     auto *process = GetGPUProcess();
-    process->m_wave_ids.clear();
     amd_dbgapi_status_t status = amd_dbgapi_process_set_progress(
         m_gpu_pid, AMD_DBGAPI_PROGRESS_NO_FORWARD);
     assert(status == AMD_DBGAPI_STATUS_SUCCESS);
     AmdDbgApiEventSet events = process_event_queue(AMD_DBGAPI_EVENT_KIND_NONE);
     if (events.HasWaveStopEvent()) {
-      for (auto wave_id : process->m_wave_ids) {
-        process->AddThread(wave_id);
-      }
+      process->UpdateThreads();
       process->Halt();
     }
+
     status =
         amd_dbgapi_process_set_progress(m_gpu_pid, AMD_DBGAPI_PROGRESS_NORMAL);
     assert(status == AMD_DBGAPI_STATUS_SUCCESS);

@@ -13,15 +13,16 @@
 #include "LLDBServerPluginAMDGPU.h"
 #include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
 #include "lldb/Host/ProcessLaunchInfo.h"
+#include "lldb/Utility/Log.h"
 #include "lldb/Utility/ProcessInfo.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/UnimplementedError.h"
+#include "llvm/ADT/ScopeExit.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/Support/Error.h"
 
 #include <amd-dbgapi/amd-dbgapi.h>
 #include <cinttypes>
-#include <iostream>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -32,7 +33,6 @@ ProcessAMDGPU::ProcessAMDGPU(lldb::pid_t pid, NativeDelegate &delegate,
                              LLDBServerPluginAMDGPU *plugin)
     : NativeProcessProtocol(pid, -1, delegate), m_debugger(plugin) {
   m_state = eStateStopped;
-  UpdateThreads();
 }
 
 Status ProcessAMDGPU::Resume(const ResumeActionList &resume_actions) {
@@ -87,11 +87,11 @@ lldb::addr_t ProcessAMDGPU::GetSharedLibraryInfoAddress() {
 }
 
 size_t ProcessAMDGPU::UpdateThreads() {
+  UpdateThreadListFromWaves();
   if (m_threads.empty()) {
-    lldb::tid_t tid = 3456;
-    m_threads.push_back(std::make_unique<ThreadAMDGPU>(*this, 3456));
-    SetCurrentThreadID(tid);
+    m_threads.push_back(ThreadAMDGPU::CreateGPUShadowThread(*this));
   }
+  SetCurrentThreadID(m_threads.back()->GetID());
   return m_threads.size();
 }
 
@@ -310,12 +310,6 @@ bool ProcessAMDGPU::handleWaveStop(amd_dbgapi_event_id_t eventId) {
                 status);
       exit(-1);
     }
-    m_wave_ids.emplace_back(wave_id);
-
-    if (m_threads.size() == 1 && m_gpu_state == State::Initializing) {
-      m_threads.clear();
-      SetCurrentThreadID(wave_id.handle);
-    }
 
     LLDB_LOGF(GetLog(GDBRLog::Plugin),
               "Wave stopped due to breakpoint at: 0x%" PRIx64
@@ -437,8 +431,195 @@ bool ProcessAMDGPU::handleDebugEvent(amd_dbgapi_event_id_t eventId,
   return result;
 }
 
-void ProcessAMDGPU::AddThread(amd_dbgapi_wave_id_t wave_id) {
-  auto thread = std::make_unique<ThreadAMDGPU>(*this, wave_id.handle, wave_id);
-  thread->SetStopReason(lldb::eStopReasonBreakpoint);
-  m_threads.emplace_back(std::move(thread));
+void ProcessAMDGPU::UpdateThreadListFromWaves() {
+  std::vector<amd_dbgapi_wave_id_t> new_waves = UpdateWaves();
+
+  // Remove dead threads.
+  m_threads.erase(
+      std::remove_if(m_threads.begin(), m_threads.end(),
+                     [this](const auto &t) {
+                       ThreadAMDGPU &thread = static_cast<ThreadAMDGPU &>(*t);
+                       if (thread.IsShadowThread())
+                         return true;
+
+                       return m_waves.find(thread.GetWaveID()) == m_waves.end();
+                     }),
+      m_threads.end());
+
+  // Add new threads.
+  for (auto wave_id : new_waves) {
+    assert(m_waves.count(wave_id) && "New wave not in m_waves");
+    m_waves.at(wave_id)->AddThreadsToList(*this, m_threads);
+  }
+}
+
+template <typename T>
+static llvm::Error QueryWaveInfo(amd_dbgapi_wave_id_t wave_id,
+                                 amd_dbgapi_wave_info_t info_type, T *dest) {
+  amd_dbgapi_status_t status =
+      amd_dbgapi_wave_get_info(wave_id, info_type, sizeof(*dest), dest);
+  if (status != AMD_DBGAPI_STATUS_SUCCESS) {
+    return llvm::createStringError(
+        llvm::inconvertibleErrorCode(),
+        "Failed to get %s for wave %" PRIu64 ": status=%s",
+        AmdDbgApiWaveInfoKindToString(info_type), wave_id.handle,
+        AmdDbgApiStatusToString(status));
+  }
+  return llvm::Error::success();
+}
+
+llvm::Expected<DbgApiWaveInfo>
+ProcessAMDGPU::GetWaveInfo(amd_dbgapi_wave_id_t wave_id) {
+  DbgApiWaveInfo wave_info;
+
+  if (llvm::Error err =
+          QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_STATE, &wave_info.state))
+    return err;
+
+  if (llvm::Error err = QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_WORKGROUP,
+                                      &wave_info.workgroup_id))
+    return err;
+
+  if (llvm::Error err = QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_DISPATCH,
+                                      &wave_info.dispatch_id))
+    return err;
+
+  if (llvm::Error err = QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_QUEUE,
+                                      &wave_info.queue_id))
+    return err;
+
+  if (llvm::Error err = QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_AGENT,
+                                      &wave_info.agent_id))
+    return err;
+
+  if (llvm::Error err = QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_PROCESS,
+                                      &wave_info.process_id))
+    return err;
+
+  if (llvm::Error err =
+          QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_ARCHITECTURE,
+                        &wave_info.architecture_id))
+    return err;
+
+  if (llvm::Error err =
+          QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_WORKGROUP_COORD,
+                        &wave_info.workgroup_coord))
+    return err;
+
+  if (llvm::Error err =
+          QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_WAVE_NUMBER_IN_WORKGROUP,
+                        &wave_info.index_in_workgroup))
+    return err;
+
+  if (llvm::Error err = QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_LANE_COUNT,
+                                      &wave_info.num_lanes_supported))
+    return err;
+
+  // Some information can only be queried if the wave is stopped.
+  if (wave_info.state == AMD_DBGAPI_WAVE_STATE_STOP) {
+    if (llvm::Error err = QueryWaveInfo(
+            wave_id, AMD_DBGAPI_WAVE_INFO_STOP_REASON, &wave_info.stop_reason))
+      return err;
+
+    if (llvm::Error err =
+            QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_PC, &wave_info.pc))
+      return err;
+
+    if (llvm::Error err = QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_EXEC_MASK,
+                                        &wave_info.exec_mask))
+      return err;
+  }
+
+  return wave_info;
+}
+
+llvm::Expected<DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t>>
+ProcessAMDGPU::GetWaveList(size_t *count, amd_dbgapi_changed_t *changed) {
+  // Re-enable wave creation on exit from this function.
+  auto ResetWaveCreation = llvm::make_scope_exit([this] {
+    if (auto error = RunAmdDbgApiCommand([this] {
+          return amd_dbgapi_process_set_wave_creation(
+              GetDbgApiProcessID(), AMD_DBGAPI_WAVE_CREATION_NORMAL);
+        }))
+      LLDB_LOG_ERROR(GetLog(GDBRLog::Plugin), std::move(error),
+                     "Error: Failed to enable wave creation: {0}");
+  });
+
+  // Stop creating new waves get an accurate count.
+  if (llvm::Error error = RunAmdDbgApiCommand([this] {
+        return amd_dbgapi_process_set_wave_creation(
+            GetDbgApiProcessID(), AMD_DBGAPI_WAVE_CREATION_STOP);
+      }))
+    return error;
+
+  // Get the list of waves
+  amd_dbgapi_wave_id_t *wave_list = nullptr;
+  if (auto error = RunAmdDbgApiCommand([&] {
+        return amd_dbgapi_process_wave_list(GetDbgApiProcessID(), count,
+                                            &wave_list, changed);
+      }))
+    return error;
+
+  return DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t>(wave_list);
+}
+
+WaveIdList ProcessAMDGPU::UpdateWaves() {
+  Log *log = GetLog(GDBRLog::Plugin);
+
+  // Get the list of waves
+  size_t count = 0;
+  amd_dbgapi_changed_t changed = AMD_DBGAPI_CHANGED_NO;
+  auto maybe_wave_list = GetWaveList(&count, &changed);
+  if (!maybe_wave_list) {
+    LLDB_LOG_ERROR(log, maybe_wave_list.takeError(),
+                   "Failed to get wave list: {0}");
+    m_waves.clear();
+    return {};
+  }
+  amd_dbgapi_wave_id_t *wave_list = maybe_wave_list->get();
+
+  if (changed == AMD_DBGAPI_CHANGED_NO) {
+    LLDB_LOGF(log, "No changes in wave list");
+    return {};
+  }
+
+  // Update the info for our live waves.
+  // Any waves that we fail to get info for are considered dead.
+  // Keep track of which waves are new so we can return them to the caller.
+  WaveIdSet live_waves;
+  WaveIdList new_waves;
+  for (size_t i = 0; i < count; ++i) {
+    amd_dbgapi_wave_id_t wave_id = wave_list[i];
+
+    if (llvm::Expected<DbgApiWaveInfo> wave_info = GetWaveInfo(wave_id)) {
+      LLDB_LOGF(log, "Successfully retrieved wave info for wave: %" PRIu64,
+                wave_id.handle);
+      if (!m_waves.count(wave_id)) {
+        LLDB_LOGF(log, "New wave: %" PRIu64, wave_id.handle);
+        m_waves.emplace(wave_id, std::make_shared<WaveAMDGPU>(wave_id));
+        new_waves.push_back(wave_id);
+      }
+      live_waves.insert(wave_id);
+      m_waves.at(wave_id)->SetDbgApiInfo(*wave_info);
+    } else {
+      // We failed to get wave info for this wave.
+      LLDB_LOG_ERROR(log, wave_info.takeError(),
+                     "Failed to get wave info for wave {1}. {0}. Marking wave as dead.",
+                     wave_id.handle);
+    }
+  }
+
+  // Remove any waves from m_waves that are not in the live_waves set.
+  // Removing from a std::unordered_map invalidates only the current iterator,
+  // so we explicitly control the iterator opdate in this loop.
+  for (auto it = m_waves.begin(); it != m_waves.end();) {
+    if (live_waves.count(it->first)) {
+      ++it;
+      continue;
+    }
+    LLDB_LOGF(log, "Removing dead wave: %" PRIu64, it->first.handle);
+    it = m_waves.erase(it);
+  }
+
+  return new_waves;
 }
