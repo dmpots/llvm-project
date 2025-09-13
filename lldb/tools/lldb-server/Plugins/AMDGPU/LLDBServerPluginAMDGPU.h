@@ -13,6 +13,7 @@
 #include "lldb/Utility/GPUGDBRemotePackets.h"
 #include "lldb/Utility/Status.h"
 
+#include "AmdDbgApiHelpers.h"
 #include "Plugins/Process/gdb-remote/GDBRemoteCommunicationServerLLGS.h"
 #include "ProcessAMDGPU.h"
 #include "llvm/ADT/StringRef.h"
@@ -97,7 +98,7 @@ private:
                                     amd_dbgapi_status_t status);
 
   bool HandleGPUInternalBreakpointHit(const GPUInternalBreakpoinInfo &bp);
-  amd_dbgapi_event_id_t
+  AmdDbgApiEventSet
   process_event_queue(amd_dbgapi_event_kind_t until_event_kind);
   bool processGPUEvent();
   bool SetGPUBreakpoint(uint64_t addr, const uint8_t *bp_instruction,

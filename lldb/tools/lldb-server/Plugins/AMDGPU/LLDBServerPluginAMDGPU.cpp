@@ -305,8 +305,8 @@ bool LLDBServerPluginAMDGPU::processGPUEvent() {
     amd_dbgapi_status_t status = amd_dbgapi_process_set_progress(
         m_gpu_pid, AMD_DBGAPI_PROGRESS_NO_FORWARD);
     assert(status == AMD_DBGAPI_STATUS_SUCCESS);
-    process_event_queue(AMD_DBGAPI_EVENT_KIND_NONE);
-    if (process->m_gpu_state == ProcessAMDGPU::State::GPUStopped) {
+    AmdDbgApiEventSet events = process_event_queue(AMD_DBGAPI_EVENT_KIND_NONE);
+    if (events.HasWaveStopEvent()) {
       for (auto wave_id : process->m_wave_ids) {
         process->AddThread(wave_id);
       }
@@ -524,9 +524,9 @@ bool LLDBServerPluginAMDGPU::HandleGPUInternalBreakpointHit(
   } else if (action == AMD_DBGAPI_BREAKPOINT_ACTION_HALT) {
     LLDB_LOGF(GetLog(GDBRLog::Plugin), "AMD_DBGAPI_BREAKPOINT_ACTION_HALT");
 
-    amd_dbgapi_event_id_t resume_event_id =
+    AmdDbgApiEventSet events =
         process_event_queue(AMD_DBGAPI_EVENT_KIND_BREAKPOINT_RESUME);
-    amd_dbgapi_event_processed(resume_event_id);
+    assert(events.HasBreakpointResumeEvent());
     return true;
   } else {
     LLDB_LOGF(GetLog(GDBRLog::Plugin), "Unknown action: %d", action);
@@ -535,8 +535,10 @@ bool LLDBServerPluginAMDGPU::HandleGPUInternalBreakpointHit(
   return true;
 }
 
-amd_dbgapi_event_id_t LLDBServerPluginAMDGPU::process_event_queue(
+AmdDbgApiEventSet LLDBServerPluginAMDGPU::process_event_queue(
     amd_dbgapi_event_kind_t until_event_kind) {
+  LLDB_LOGF(GetLog(GDBRLog::Plugin), "Processing event queue");
+  AmdDbgApiEventSet events;
   while (true) {
     amd_dbgapi_event_id_t event_id;
     amd_dbgapi_event_kind_t event_kind;
@@ -546,21 +548,20 @@ amd_dbgapi_event_id_t LLDBServerPluginAMDGPU::process_event_queue(
     if (status != AMD_DBGAPI_STATUS_SUCCESS) {
       LLDB_LOGF(GetLog(GDBRLog::Plugin),
                 "amd_dbgapi_process_next_pending_event failed: %d", status);
-      return AMD_DBGAPI_EVENT_NONE;
+      break;
     }
 
-    if (event_kind != AMD_DBGAPI_EVENT_KIND_NONE)
-      LLDB_LOGF(GetLog(GDBRLog::Plugin),
-                "event_kind != AMD_DBGAPI_EVENT_KIND_NONE: %d", event_kind);
-
-    if (event_id.handle == AMD_DBGAPI_EVENT_NONE.handle ||
-        event_kind == until_event_kind)
-      return event_id;
+    events.AddEvent(event_kind);
 
     GetGPUProcess()->handleDebugEvent(event_id, event_kind);
-    amd_dbgapi_event_processed(event_id);
+
+    if (event_kind == until_event_kind)
+      break;
   }
-  return AMD_DBGAPI_EVENT_NONE;
+
+  LLDB_LOGF(GetLog(GDBRLog::Plugin), "Processed events: %s",
+            events.ToString().c_str());
+  return events;
 }
 
 void LLDBServerPluginAMDGPU::FreeDbgApiClientMemory(void *mem) {
