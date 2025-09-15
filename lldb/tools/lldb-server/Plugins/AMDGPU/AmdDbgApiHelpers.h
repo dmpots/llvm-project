@@ -15,6 +15,7 @@
 #define LLDB_TOOLS_LLDB_SERVER_AMDDBGAPIHELPERS_H
 #include <amd-dbgapi/amd-dbgapi.h>
 #include <bitset>
+#include <memory>
 #include <string>
 
 namespace lldb_private {
@@ -85,6 +86,21 @@ private:
   // without modifying this size. 32 is a nice even number.
   std::bitset<32> m_events;
 };
+
+// Custom deleter for std::unique_ptr that uses FreeDbgApiClientMemory
+struct DbgApiClientMemoryDeleter {
+  void operator()(void *ptr) const;
+};
+
+// Type alias for std::unique_ptr with the custom deleter
+//
+// Example usage:
+// auto ptr =
+// DbgApiClientMemoryPtr<SomeType>(static_cast<SomeType*>(raw_ptr_from_dbgapi));
+// The memory will be automatically freed when ptr goes out of scope
+template <typename T>
+using DbgApiClientMemoryPtr = std::unique_ptr<T, DbgApiClientMemoryDeleter>;
+
 } // namespace lldb_server
 } // namespace lldb_private
 #endif
