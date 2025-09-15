@@ -28,6 +28,7 @@ using namespace lldb_private;
 using namespace lldb_private::lldb_server;
 using namespace lldb_private::process_gdb_remote;
 
+
 ProcessAMDGPU::ProcessAMDGPU(lldb::pid_t pid, NativeDelegate &delegate,
                              LLDBServerPluginAMDGPU *plugin)
     : NativeProcessProtocol(pid, -1, delegate), m_debugger(plugin) {
@@ -467,7 +468,8 @@ DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
     return {};
   }
 
-  std::unordered_set<amd_dbgapi_wave_id_t> live_waves;
+  WaveIdSet live_waves;
+  //std::unordered_set<amd_dbgapi_wave_id_t> live_waves;
   for (size_t i = 0; i < count; ++i) {
   }
 

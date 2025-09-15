@@ -110,7 +110,7 @@ public:
   State m_gpu_state = State::Initializing;
   std::vector<amd_dbgapi_wave_id_t> m_wave_ids;
 private:
-  std::unordered_map<uint64_t, std::shared_ptr<WaveAMDGPU>> m_waves; // TODO: use amd_dbgapi_wave_id_t
+  WaveIdMap<std::shared_ptr<WaveAMDGPU>> m_waves;
   DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t> UpdateWaves();
   DbgApiWaveInfo GetWaveInfo(amd_dbgapi_wave_id_t wave_id);
 };

@@ -17,6 +17,9 @@
 #include <bitset>
 #include <memory>
 #include <string>
+#include <unordered_set>
+#include <unordered_map>
+#include <cassert>
 
 namespace lldb_private {
 namespace lldb_server {
@@ -100,6 +103,20 @@ struct DbgApiClientMemoryDeleter {
 // The memory will be automatically freed when ptr goes out of scope
 template <typename T>
 using DbgApiClientMemoryPtr = std::unique_ptr<T, DbgApiClientMemoryDeleter>;
+
+// Custom hash function for amd_dbgapi_wave_id_t
+struct WaveIdHash {
+  std::size_t operator()(const amd_dbgapi_wave_id_t& wave_id) const noexcept {
+    return std::hash<uint64_t>{}(wave_id.handle);
+  }
+};
+
+// Convenient typedef for unordered_set of wave IDs with custom hasher.
+using WaveIdSet = std::unordered_set<amd_dbgapi_wave_id_t, WaveIdHash>;
+
+// Convenient typedef for unordered_map of wave IDs with custom hasher.
+template <typename T>
+using WaveIdMap = std::unordered_map<amd_dbgapi_wave_id_t, T, WaveIdHash>;
 
 } // namespace lldb_server
 } // namespace lldb_private
