@@ -68,6 +68,10 @@ public:
   ProcessAMDGPU *GetGPUProcess() {
     return (ProcessAMDGPU *)m_gdb_server->GetCurrentProcess();
   }
+  amd_dbgapi_process_id_t GetDbgApiNativeProcessID() {
+    lldb::pid_t pid = GetGPUProcess()->GetID();
+    return amd_dbgapi_process_id_t{pid};
+  }
 
   // Free the memory using the matching callback provided to the debug library.
   static void FreeDbgApiClientMemory(void *mem);

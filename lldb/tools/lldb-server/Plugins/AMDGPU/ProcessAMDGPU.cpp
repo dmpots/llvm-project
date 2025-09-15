@@ -442,3 +442,41 @@ void ProcessAMDGPU::AddThread(amd_dbgapi_wave_id_t wave_id) {
   thread->SetStopReason(lldb::eStopReasonBreakpoint);
   m_threads.emplace_back(std::move(thread));
 }
+
+DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
+  Log *log = GetLog(GDBRLog::Plugin);
+
+  // Stop creating new waves.
+
+  // Get the list of waves
+  amd_dbgapi_process_id_t pid = m_debugger->GetDbgApiNativeProcessID();
+  amd_dbgapi_wave_id_t *wave_list_memory = nullptr;
+  size_t count = 0;
+  amd_dbgapi_changed_t changed = AMD_DBGAPI_CHANGED_NO;
+  amd_dbgapi_status_t status =
+      amd_dbgapi_process_wave_list(pid, &count, &wave_list_memory, &changed);
+  if (status != AMD_DBGAPI_STATUS_SUCCESS) {
+    LLDB_LOGF(log, "Failed to get wave list: %d", status);
+    return {};
+  }
+  
+  DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t> wave_list(wave_list_memory);
+
+  if (changed == AMD_DBGAPI_CHANGED_NO) {
+    LLDB_LOGF(log, "No changes in wave list: %d", status);
+    return {};
+  }
+
+  std::unordered_set<amd_dbgapi_wave_id_t> live_waves;
+  for (size_t i = 0; i < count; ++i) {
+  }
+
+  // Sort the list of waves by handle so that we get a 
+  // deterministic order of waves which is important for
+  // maintaining the thread list in a deterministic order.
+  std::sort(wave_list.get(), wave_list.get() + count, [](auto a, auto b) {
+    a.handle < b.handle;
+  });
+  
+  return wave_list;
+}
