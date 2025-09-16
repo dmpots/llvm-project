@@ -40,10 +40,10 @@ class WaveAMDGPU {
   public:
   explicit WaveAMDGPU(amd_dbgapi_wave_id_t wave_id) : m_wave_id(wave_id) {}
 
-  void AddThreadsToList(std::vector<std::unique_ptr<NativeThreadProtocol>> &threads) const;
   void SetDbgApiInfo(const DbgApiWaveInfo &wave_info) {
     m_wave_info = wave_info;
   }
+  amd_dbgapi_wave_id_t GetWaveID() { return m_wave_id; }
   //RegisterContextAMDGPU &GetRegisterContext();
 
   private:
@@ -51,5 +51,6 @@ class WaveAMDGPU {
   //RegisterContextAMDGPU m_reg_context;
   DbgApiWaveInfo m_wave_info;
 };
-}}
+} // namespace lldb_server
+} // namespace lldb_private
 #endif

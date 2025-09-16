@@ -88,6 +88,7 @@ lldb::addr_t ProcessAMDGPU::GetSharedLibraryInfoAddress() {
 }
 
 size_t ProcessAMDGPU::UpdateThreads() {
+  UpdateThreadListFromWaves();
   if (m_threads.empty()) {
     m_threads.push_back(ThreadAMDGPU::CreateGPUShadowThread(*this));
     SetCurrentThreadID(m_threads.back()->GetID());
@@ -449,7 +450,24 @@ DbgApiWaveInfo ProcessAMDGPU::GetWaveInfo(amd_dbgapi_wave_id_t wave_id) {
   return DbgApiWaveInfo();
 }
 
-void ProcessAMDGPU::UpdateThreadList() {
+void ProcessAMDGPU::UpdateThreadListFromWaves() {
+  std::vector<amd_dbgapi_wave_id_t> new_waves = UpdateWaves();
+
+  // Remove dead threads.
+  std::remove_if(
+      m_threads.begin(), m_threads.end(), [this](const auto &t) {
+        ThreadAMDGPU &thread = static_cast<ThreadAMDGPU &>(*t);
+        if (thread.IsShadowThread())
+          return true;
+
+        return m_waves.find(thread.GetWaveID()) == m_waves.end();
+      });
+
+  // Add new threads.
+  for (auto wave_id : new_waves) {
+    assert(m_waves.count(wave_id) && "New wave not in m_waves");
+    AddThread(wave_id);
+  }
 }
 
 std::vector<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
@@ -469,7 +487,7 @@ std::vector<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
     m_waves.clear();
     return {};
   }
-  
+
   DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t> wave_list_owner(wave_list);
 
   if (changed == AMD_DBGAPI_CHANGED_NO) {
@@ -499,6 +517,6 @@ std::vector<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
     LLDB_LOGF(log, "Dead wave: %" PRIu64, it->first.handle);
     it = m_waves.erase(it);
   }
-  
+
   return new_waves;
 }

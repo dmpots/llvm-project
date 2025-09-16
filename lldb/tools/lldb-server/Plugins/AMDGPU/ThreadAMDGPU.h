@@ -9,6 +9,7 @@
 #ifndef LLDB_TOOLS_LLDB_SERVER_THREADAMDGPU_H
 #define LLDB_TOOLS_LLDB_SERVER_THREADAMDGPU_H
 
+#include "WaveAMDGPU.h"
 #include "RegisterContextAMDGPU.h"
 #include "lldb/Host/common/NativeThreadProtocol.h"
 #include "lldb/lldb-private-forward.h"
@@ -63,6 +64,16 @@ public:
   std::optional<amd_dbgapi_wave_id_t> GetWaveId() const {
     return m_wave_id;
   }
+  
+  amd_dbgapi_wave_id_t GetWaveID() const {
+    if (!m_wave)
+      return AMD_DBGAPI_WAVE_NONE;
+    return m_wave->GetWaveID();
+  }
+
+  WaveAMDGPU *GetWave() const { return m_wave.get(); }
+
+  bool IsShadowThread() const { return m_wave == nullptr; }
 
 private:
   // Member Variables

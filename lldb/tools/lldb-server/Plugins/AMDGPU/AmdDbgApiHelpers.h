@@ -122,10 +122,12 @@ using WaveIdMap = std::unordered_map<amd_dbgapi_wave_id_t, T, WaveIdHash>;
 } // namespace lldb_private
 
 // Comparison operator for amd_dbgapi_wave_id_t to enable sorting
-inline bool operator<(const amd_dbgapi_wave_id_t& lhs, const amd_dbgapi_wave_id_t& rhs) {
+inline bool operator<(const amd_dbgapi_wave_id_t &lhs,
+                      const amd_dbgapi_wave_id_t &rhs) {
   return lhs.handle < rhs.handle;
 }
-inline bool operator==(const amd_dbgapi_wave_id_t& lhs, const amd_dbgapi_wave_id_t& rhs) {
+inline bool operator==(const amd_dbgapi_wave_id_t &lhs,
+                       const amd_dbgapi_wave_id_t &rhs) {
   return lhs.handle == rhs.handle;
 }
 #endif
