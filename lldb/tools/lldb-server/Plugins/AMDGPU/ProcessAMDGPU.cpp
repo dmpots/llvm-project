@@ -444,24 +444,33 @@ void ProcessAMDGPU::AddThread(amd_dbgapi_wave_id_t wave_id) {
   m_threads.emplace_back(std::move(thread));
 }
 
-DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
+DbgApiWaveInfo ProcessAMDGPU::GetWaveInfo(amd_dbgapi_wave_id_t wave_id) {
+  // TODO: Get the wave info from the debugger.
+  return DbgApiWaveInfo();
+}
+
+void ProcessAMDGPU::UpdateThreadList() {
+}
+
+std::vector<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
   Log *log = GetLog(GDBRLog::Plugin);
 
-  // Stop creating new waves.
+  // TODO: Stop creating new waves.
 
   // Get the list of waves
   amd_dbgapi_process_id_t pid = m_debugger->GetDbgApiNativeProcessID();
-  amd_dbgapi_wave_id_t *wave_list_memory = nullptr;
+  amd_dbgapi_wave_id_t *wave_list = nullptr;
   size_t count = 0;
   amd_dbgapi_changed_t changed = AMD_DBGAPI_CHANGED_NO;
   amd_dbgapi_status_t status =
-      amd_dbgapi_process_wave_list(pid, &count, &wave_list_memory, &changed);
+      amd_dbgapi_process_wave_list(pid, &count, &wave_list, &changed);
   if (status != AMD_DBGAPI_STATUS_SUCCESS) {
     LLDB_LOGF(log, "Failed to get wave list: %d", status);
+    m_waves.clear();
     return {};
   }
   
-  DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t> wave_list(wave_list_memory);
+  DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t> wave_list_owner(wave_list);
 
   if (changed == AMD_DBGAPI_CHANGED_NO) {
     LLDB_LOGF(log, "No changes in wave list: %d", status);
@@ -469,16 +478,27 @@ DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
   }
 
   WaveIdSet live_waves;
-  //std::unordered_set<amd_dbgapi_wave_id_t> live_waves;
+  std::vector<amd_dbgapi_wave_id_t> new_waves;
   for (size_t i = 0; i < count; ++i) {
+    amd_dbgapi_wave_id_t wave_id = wave_list[i];
+    live_waves.insert(wave_id);
+    if (!m_waves.count(wave_id)) {
+      LLDB_LOGF(log, "New wave: %" PRIu64, wave_id.handle);
+      m_waves.emplace(wave_id, std::make_shared<WaveAMDGPU>(wave_id));
+      new_waves.push_back(wave_id);
+    }
+    m_waves.at(wave_id)->SetDbgApiInfo(GetWaveInfo(wave_id));
   }
 
-  // Sort the list of waves by handle so that we get a 
-  // deterministic order of waves which is important for
-  // maintaining the thread list in a deterministic order.
-  std::sort(wave_list.get(), wave_list.get() + count, [](auto a, auto b) {
-    a.handle < b.handle;
-  });
+  // Remove any waves from m_waves that are not in the live_waves set.
+  for (auto it = m_waves.begin(); it != m_waves.end();) {
+    if (live_waves.count(it->first)) {
+      ++it;
+      continue;
+    }
+    LLDB_LOGF(log, "Dead wave: %" PRIu64, it->first.handle);
+    it = m_waves.erase(it);
+  }
   
-  return wave_list;
+  return new_waves;
 }
