@@ -16,6 +16,7 @@
 #include <string>
 #include <memory>
 #include <amd-dbgapi/amd-dbgapi.h>
+#include "Plugins/Utils/Utils.h"
 
 namespace lldb_private {
 namespace lldb_server {
@@ -85,6 +86,8 @@ private:
   std::optional<amd_dbgapi_wave_id_t> m_wave_id;
   std::shared_ptr<WaveAMDGPU> m_wave;
 };
+
+using AMDGPUThreadRange = GPUThreadRange<ThreadAMDGPU>;
 } // namespace lldb_server
 } // namespace lldb_private
 
