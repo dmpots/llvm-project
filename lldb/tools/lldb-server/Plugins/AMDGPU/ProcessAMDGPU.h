@@ -10,6 +10,7 @@
 #define LLDB_TOOLS_LLDB_SERVER_PROCESSAMDGPU_H
 
 #include "GpuModuleManager.h"
+#include "ThreadAMDGPU.h"
 #include "WaveAMDGPU.h"
 #include "lldb/Host/common/NativeProcessProtocol.h"
 #include "lldb/Utility/ProcessInfo.h"

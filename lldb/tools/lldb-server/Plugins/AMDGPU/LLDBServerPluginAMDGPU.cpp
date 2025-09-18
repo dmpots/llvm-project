@@ -229,6 +229,7 @@ Status LLDBServerPluginAMDGPU::AttachAmdDbgApi() {
     return HandleAmdDbgApiAttachError(error.AsCString(),
                                       AMD_DBGAPI_STATUS_ERROR);
   }
+  GetGPUProcess()->UpdateThreads();
 
   // Process all pending events
   LLDB_LOGF(log, "%s Processing any pending dbgapi events", __FUNCTION__);

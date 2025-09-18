@@ -13,6 +13,30 @@
 //===----------------------------------------------------------------------===//
 
 #include "WaveAMDGPU.h"
+#include "ThreadAMDGPU.h"
+#include <memory>
 
 using namespace lldb_private;
 using namespace lldb_server;
+#include <atomic>
+
+// Global atomic variable for thread-safe incrementing of llvm::pid_t.
+// This is used to have a unique thread ID for each thread.
+// It is thread safe in case we want to support handling gpu connection
+// on a separate thread at some point.
+static std::atomic<lldb::pid_t> g_atomic_tid{0};
+
+void WaveAMDGPU::AddThreadsToList(
+    ProcessAMDGPU &process,
+    std::vector<std::unique_ptr<NativeThreadProtocol>> &threads) {
+
+    // Reserve a contiguous range of thread IDs for this wave.
+    size_t num_lanes = m_wave_info.num_lanes_supported;
+    lldb::pid_t tid_base = g_atomic_tid.fetch_add(num_lanes);
+
+    // Create a thread for each lane in the wave.
+    for (size_t i = 0; i < num_lanes; ++i) {
+        lldb::pid_t tid = tid_base + i;
+        threads.push_back(std::make_unique<ThreadAMDGPU>(process, tid, shared_from_this()));
+    }
+}

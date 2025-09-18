@@ -33,7 +33,6 @@ ProcessAMDGPU::ProcessAMDGPU(lldb::pid_t pid, NativeDelegate &delegate,
                              LLDBServerPluginAMDGPU *plugin)
     : NativeProcessProtocol(pid, -1, delegate), m_debugger(plugin) {
   m_state = eStateStopped;
-  UpdateThreads();
 }
 
 Status ProcessAMDGPU::Resume(const ResumeActionList &resume_actions) {
@@ -466,7 +465,7 @@ void ProcessAMDGPU::UpdateThreadListFromWaves() {
   // Add new threads.
   for (auto wave_id : new_waves) {
     assert(m_waves.count(wave_id) && "New wave not in m_waves");
-    AddThread(wave_id);
+    m_waves.at(wave_id)->AddThreadsToList(*this, m_threads);
   }
 }
 

@@ -17,9 +17,12 @@
 #include "RegisterContextAMDGPU.h"
 #include "lldb/Host/common/NativeThreadProtocol.h"
 #include <amd-dbgapi/amd-dbgapi.h>
+#include <memory>
 
 namespace lldb_private {
 namespace lldb_server {
+  class ProcessAMDGPU;
+
 struct DbgApiWaveInfo {
   amd_dbgapi_wave_state_t state = AMD_DBGAPI_WAVE_STATE_RUN;
   amd_dbgapi_wave_stop_reasons_t stop_reason = AMD_DBGAPI_WAVE_STOP_REASON_NONE;
@@ -36,10 +39,14 @@ struct DbgApiWaveInfo {
   size_t num_lanes_supported = 0;
 };
 
-class WaveAMDGPU {
+class WaveAMDGPU : public std::enable_shared_from_this<WaveAMDGPU> {
   public:
   explicit WaveAMDGPU(amd_dbgapi_wave_id_t wave_id) : m_wave_id(wave_id) {}
 
+  void AddThreadsToList(
+    ProcessAMDGPU &process,
+    std::vector<std::unique_ptr<NativeThreadProtocol>> &threads
+  );
   void SetDbgApiInfo(const DbgApiWaveInfo &wave_info) {
     m_wave_info = wave_info;
   }
