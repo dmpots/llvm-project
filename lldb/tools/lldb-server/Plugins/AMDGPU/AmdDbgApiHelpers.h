@@ -15,11 +15,11 @@
 #define LLDB_TOOLS_LLDB_SERVER_AMDDBGAPIHELPERS_H
 #include <amd-dbgapi/amd-dbgapi.h>
 #include <bitset>
+#include <cassert>
 #include <memory>
 #include <string>
-#include <unordered_set>
 #include <unordered_map>
-#include <cassert>
+#include <unordered_set>
 
 namespace lldb_private {
 namespace lldb_server {
@@ -47,6 +47,54 @@ static const char *AmdDbgApiEventKindToString(amd_dbgapi_event_kind_t kind) {
     return "QUEUE_ERROR";
   }
   assert(false && "unhandled amd_dbgapi_event_kind_t value");
+}
+
+inline const char *
+AmdDbgApiWaveInfoKindToString(amd_dbgapi_wave_info_t info_kind) {
+  switch (info_kind) {
+  case AMD_DBGAPI_WAVE_INFO_STATE:
+    return "AMD_DBGAPI_WAVE_INFO_STATE";
+
+  case AMD_DBGAPI_WAVE_INFO_STOP_REASON:
+    return "AMD_DBGAPI_WAVE_INFO_STOP_REASON";
+
+  case AMD_DBGAPI_WAVE_INFO_WATCHPOINTS:
+    return "AMD_DBGAPI_WAVE_INFO_WATCHPOINTS";
+
+  case AMD_DBGAPI_WAVE_INFO_WORKGROUP:
+    return "AMD_DBGAPI_WAVE_INFO_WORKGROUP";
+
+  case AMD_DBGAPI_WAVE_INFO_DISPATCH:
+    return "AMD_DBGAPI_WAVE_INFO_DISPATCH";
+
+  case AMD_DBGAPI_WAVE_INFO_QUEUE:
+    return "AMD_DBGAPI_WAVE_INFO_QUEUE";
+
+  case AMD_DBGAPI_WAVE_INFO_AGENT:
+    return "AMD_DBGAPI_WAVE_INFO_AGENT";
+
+  case AMD_DBGAPI_WAVE_INFO_PROCESS:
+    return "AMD_DBGAPI_WAVE_INFO_PROCESS";
+
+  case AMD_DBGAPI_WAVE_INFO_ARCHITECTURE:
+    return "AMD_DBGAPI_WAVE_INFO_ARCHITECTURE";
+
+  case AMD_DBGAPI_WAVE_INFO_PC:
+    return "AMD_DBGAPI_WAVE_INFO_PC";
+
+  case AMD_DBGAPI_WAVE_INFO_EXEC_MASK:
+    return "AMD_DBGAPI_WAVE_INFO_EXEC_MASK";
+
+  case AMD_DBGAPI_WAVE_INFO_WORKGROUP_COORD:
+    return "AMD_DBGAPI_WAVE_INFO_WORKGROUP_COORD";
+
+  case AMD_DBGAPI_WAVE_INFO_WAVE_NUMBER_IN_WORKGROUP:
+    return "AMD_DBGAPI_WAVE_INFO_WAVE_NUMBER_IN_WORKGROUP";
+
+  case AMD_DBGAPI_WAVE_INFO_LANE_COUNT:
+    return "AMD_DBGAPI_WAVE_INFO_LANE_COUNT";
+  }
+  assert(false && "unhandled amd_dbgapi_wave_info_t value");
 }
 
 struct AmdDbgApiEventSet {
@@ -106,7 +154,7 @@ using DbgApiClientMemoryPtr = std::unique_ptr<T, DbgApiClientMemoryDeleter>;
 
 // Custom hash function for amd_dbgapi_wave_id_t
 struct WaveIdHash {
-  std::size_t operator()(const amd_dbgapi_wave_id_t& wave_id) const noexcept {
+  std::size_t operator()(const amd_dbgapi_wave_id_t &wave_id) const noexcept {
     return std::hash<uint64_t>{}(wave_id.handle);
   }
 };
