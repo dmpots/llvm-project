@@ -43,6 +43,7 @@ Status ProcessAMDGPU::Resume(const ResumeActionList &resume_actions) {
 }
 
 Status ProcessAMDGPU::Halt() {
+  UpdateThreads();
   SetState(StateType::eStateStopped, true);
   return Status();
 }
@@ -90,8 +91,8 @@ size_t ProcessAMDGPU::UpdateThreads() {
   UpdateThreadListFromWaves();
   if (m_threads.empty()) {
     m_threads.push_back(ThreadAMDGPU::CreateGPUShadowThread(*this));
-    SetCurrentThreadID(m_threads.back()->GetID());
   }
+  SetCurrentThreadID(m_threads.back()->GetID());
   return m_threads.size();
 }
 
