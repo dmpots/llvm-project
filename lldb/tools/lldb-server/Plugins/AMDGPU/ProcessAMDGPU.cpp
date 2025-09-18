@@ -441,13 +441,14 @@ void ProcessAMDGPU::UpdateThreadListFromWaves() {
   std::vector<amd_dbgapi_wave_id_t> new_waves = UpdateWaves();
 
   // Remove dead threads.
+  m_threads.erase(
   std::remove_if(m_threads.begin(), m_threads.end(), [this](const auto &t) {
     ThreadAMDGPU &thread = static_cast<ThreadAMDGPU &>(*t);
     if (thread.IsShadowThread())
       return true;
 
     return m_waves.find(thread.GetWaveID()) == m_waves.end();
-  });
+  }), m_threads.end());
 
   // Add new threads.
   for (auto wave_id : new_waves) {
