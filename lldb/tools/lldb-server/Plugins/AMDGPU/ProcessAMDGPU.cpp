@@ -478,6 +478,7 @@ ProcessAMDGPU::GetWaveInfo(amd_dbgapi_wave_id_t wave_id) {
           QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_STATE, &wave_info.state))
     return err;
 
+  wave_info.stop_reason = AMD_DBGAPI_WAVE_STOP_REASON_NONE;
   if (wave_info.state == AMD_DBGAPI_WAVE_STATE_STOP)
     if (llvm::Error err = QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_STOP_REASON,
                                         &wave_info.stop_reason))
