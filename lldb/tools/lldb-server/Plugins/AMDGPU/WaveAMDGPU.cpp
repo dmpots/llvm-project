@@ -14,6 +14,7 @@
 
 #include "WaveAMDGPU.h"
 #include "ThreadAMDGPU.h"
+#include "llvm/ADT/bit.h"
 #include <memory>
 
 using namespace lldb_private;
@@ -31,7 +32,11 @@ void WaveAMDGPU::AddThreadsToList(
     std::vector<std::unique_ptr<NativeThreadProtocol>> &threads) {
 
     // Reserve a contiguous range of thread IDs for this wave.
-    size_t num_lanes = m_wave_info.num_lanes_supported;
+    // TODO: the num_lanes is not always correct because we are taking the
+    // current exec_mask instead of the exec_mask on wave launch. This means
+    // we could be undercounting the number of threads if we first learn about
+    // a wave when not all lanes are active.
+    size_t num_lanes = llvm::popcount(m_wave_info.exec_mask);
     lldb::pid_t tid_base = g_atomic_tid.fetch_add(num_lanes);
 
     // Create a thread for each lane in the wave.
