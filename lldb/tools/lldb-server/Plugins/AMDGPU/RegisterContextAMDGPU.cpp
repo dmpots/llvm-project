@@ -16,6 +16,7 @@
 #include "lldb/Host/common/NativeThreadProtocol.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/RegisterValue.h"
+#include "lldb/Utility/State.h"
 #include "lldb/Utility/Status.h"
 
 #include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
@@ -402,7 +403,7 @@ Status RegisterContextAMDGPU::ReadReg(const RegisterInfo *reg_info) {
 Status RegisterContextAMDGPU::ReadRegs() {
   ThreadAMDGPU *thread = (ThreadAMDGPU *)&m_thread;
   if (thread != nullptr) {
-    const bool thread_stopped = thread->GetState() == eStateStopped;
+    const bool thread_stopped = StateIsStoppedState(thread->GetState(), /*must_exist=*/true);
     if (thread_stopped) {
       for (uint32_t i = 0; i < g_reg_infos.size(); ++i) {
         Status error = ReadReg(&g_reg_infos[i]);
