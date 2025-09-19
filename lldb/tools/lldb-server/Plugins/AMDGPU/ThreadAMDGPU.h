@@ -62,10 +62,6 @@ public:
 
   const ProcessAMDGPU &GetProcess() const;
 
-  std::optional<amd_dbgapi_wave_id_t> GetWaveId() const {
-    return m_wave_id;
-  }
-  
   amd_dbgapi_wave_id_t GetWaveID() const {
     if (!m_wave)
       return AMD_DBGAPI_WAVE_NONE;
@@ -83,7 +79,6 @@ private:
   std::string m_description = "";
   RegisterContextAMDGPU m_reg_context;
   std::string m_stop_description;
-  std::optional<amd_dbgapi_wave_id_t> m_wave_id;
   std::shared_ptr<WaveAMDGPU> m_wave;
 };
 

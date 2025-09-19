@@ -24,7 +24,7 @@ using namespace lldb_server;
 // This is used to have a unique thread ID for each thread.
 // It is thread safe in case we want to support handling gpu connection
 // on a separate thread at some point.
-static std::atomic<lldb::pid_t> g_atomic_tid{0};
+static std::atomic<lldb::pid_t> g_atomic_tid{1};
 
 void WaveAMDGPU::AddThreadsToList(
     ProcessAMDGPU &process,

@@ -27,11 +27,11 @@ std::unique_ptr<ThreadAMDGPU> ThreadAMDGPU::CreateGPUShadowThread(ProcessAMDGPU 
 
 // NativeThreadProtocol Interface
 std::string ThreadAMDGPU::GetName() {
-  if (!m_wave_id)
+  if (IsShadowThread())
     return "AMD Native Shadow Thread";
   else
     return std::string("AMD GPU Thread ") +
-           std::to_string(m_wave_id.value().handle);
+           std::to_string(m_tid);
 }
 
 lldb::StateType ThreadAMDGPU::GetState() { return lldb::eStateStopped; }

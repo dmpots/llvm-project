@@ -354,15 +354,15 @@ Status RegisterContextAMDGPU::ReadReg(const RegisterInfo *reg_info) {
   assert(lldb_reg_num < kNumRegs);
   auto amd_reg_id = g_lldb_num_to_amd_reg_id[lldb_reg_num];
   ThreadAMDGPU *thread = (ThreadAMDGPU *)&m_thread;
-  auto wave_id = thread->GetWaveId();
-  if (!wave_id) {
-    // Swallow the error because so that we are returning the dummy register
-    // vlaues.
+
+  // Swallow the error for the shadow thread, as it doesn't have valid values.
+  if (thread->IsShadowThread())
     return error;
-  }
+  amd_dbgapi_wave_id_t wave_id = thread->GetWaveID();
+  
   amd_dbgapi_register_exists_t exists;
   amd_dbgapi_status_t amd_status =
-      amd_dbgapi_wave_register_exists(wave_id.value(), amd_reg_id, &exists);
+      amd_dbgapi_wave_register_exists(wave_id, amd_reg_id, &exists);
   if (amd_status != AMD_DBGAPI_STATUS_SUCCESS) {
     error.FromErrorStringWithFormat(
         "Failed to check register %s existence  due to error %d",
@@ -376,7 +376,7 @@ Status RegisterContextAMDGPU::ReadReg(const RegisterInfo *reg_info) {
     return error;
   }
 
-  amd_status = amd_dbgapi_prefetch_register(wave_id.value(), amd_reg_id,
+  amd_status = amd_dbgapi_prefetch_register(wave_id, amd_reg_id,
                                             m_regs.data.size() - lldb_reg_num);
   if (amd_status != AMD_DBGAPI_STATUS_SUCCESS) {
     error = Status::FromErrorStringWithFormat(
@@ -387,7 +387,7 @@ Status RegisterContextAMDGPU::ReadReg(const RegisterInfo *reg_info) {
 
   // Read the register value
   amd_status = amd_dbgapi_read_register(
-      wave_id.value(), amd_reg_id, 0, reg_info->byte_size,
+      wave_id, amd_reg_id, 0, reg_info->byte_size,
       m_regs.data.data() + reg_info->byte_offset);
   if (amd_status != AMD_DBGAPI_STATUS_SUCCESS) {
     error = Status::FromErrorStringWithFormat(
@@ -402,9 +402,8 @@ Status RegisterContextAMDGPU::ReadReg(const RegisterInfo *reg_info) {
 Status RegisterContextAMDGPU::ReadRegs() {
   ThreadAMDGPU *thread = (ThreadAMDGPU *)&m_thread;
   if (thread != nullptr) {
-    auto wave_id = thread->GetWaveId();
-    bool wave_stopped = wave_id.has_value();
-    if (wave_stopped) {
+    const bool thread_stopped = thread->GetState() == eStateStopped;
+    if (thread_stopped) {
       for (uint32_t i = 0; i < g_reg_infos.size(); ++i) {
         Status error = ReadReg(&g_reg_infos[i]);
         if (error.Fail())
