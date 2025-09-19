@@ -312,8 +312,10 @@ bool LLDBServerPluginAMDGPU::processGPUEvent() {
         m_gpu_pid, AMD_DBGAPI_PROGRESS_NO_FORWARD);
     assert(status == AMD_DBGAPI_STATUS_SUCCESS);
     AmdDbgApiEventSet events = process_event_queue(AMD_DBGAPI_EVENT_KIND_NONE);
-    if (events.HasWaveStopEvent())
+    if (events.HasWaveStopEvent()) {
+      process->UpdateThreads();
       process->Halt();
+    }
     
     status =
         amd_dbgapi_process_set_progress(m_gpu_pid, AMD_DBGAPI_PROGRESS_NORMAL);

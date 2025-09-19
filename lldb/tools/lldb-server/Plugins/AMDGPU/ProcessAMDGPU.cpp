@@ -41,7 +41,6 @@ Status ProcessAMDGPU::Resume(const ResumeActionList &resume_actions) {
 }
 
 Status ProcessAMDGPU::Halt() {
-  UpdateThreads();
   SetState(StateType::eStateStopped, true);
   return Status();
 }
@@ -464,9 +463,9 @@ static llvm::Error QueryWaveInfo(amd_dbgapi_wave_id_t wave_id,
       amd_dbgapi_wave_get_info(wave_id, info_type, sizeof(*dest), dest);
   if (status != AMD_DBGAPI_STATUS_SUCCESS) {
     return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                   "Failed to get %s for wave %" PRIu64 ": %d",
+                                   "Failed to get %s for wave %" PRIu64 ": status=%s",
                                    AmdDbgApiWaveInfoKindToString(info_type),
-                                   wave_id.handle, status);
+                                   wave_id.handle, AmdDbgApiStatusToString(status));
   }
   return llvm::Error::success();
 }
@@ -522,13 +521,13 @@ ProcessAMDGPU::GetWaveInfo(amd_dbgapi_wave_id_t wave_id) {
                         &wave_info.workgroup_coord))
     return err;
 
-  if (llvm::Error err = QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_LANE_COUNT,
-                                      &wave_info.index_in_workgroup))
-    return err;
-
   if (llvm::Error err =
           QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_WAVE_NUMBER_IN_WORKGROUP,
-                        &wave_info.num_lanes_supported))
+                        &wave_info.index_in_workgroup))
+    return err;
+  
+  if (llvm::Error err = QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_LANE_COUNT,
+                                      &wave_info.num_lanes_supported))
     return err;
 
   return wave_info;
@@ -567,17 +566,17 @@ std::vector<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
   std::vector<amd_dbgapi_wave_id_t> new_waves;
   for (size_t i = 0; i < count; ++i) {
     amd_dbgapi_wave_id_t wave_id = wave_list[i];
-    if (!m_waves.count(wave_id)) {
-      LLDB_LOGF(log, "New wave: %" PRIu64, wave_id.handle);
-      m_waves.emplace(wave_id, std::make_shared<WaveAMDGPU>(wave_id));
-      new_waves.push_back(wave_id);
-    }
 
     if (llvm::Expected<DbgApiWaveInfo> wave_info = GetWaveInfo(wave_id)) {
       LLDB_LOGF(log, "Successfully retrieved wave info for wave: %" PRIu64,
                 wave_id.handle);
-      m_waves.at(wave_id)->SetDbgApiInfo(*wave_info);
+      if (!m_waves.count(wave_id)) {
+        LLDB_LOGF(log, "New wave: %" PRIu64, wave_id.handle);
+        m_waves.emplace(wave_id, std::make_shared<WaveAMDGPU>(wave_id));
+        new_waves.push_back(wave_id);
+      }
       live_waves.insert(wave_id);
+      m_waves.at(wave_id)->SetDbgApiInfo(*wave_info);
     } else {
       LLDB_LOGF(log,
                 "Failed to get wave info for wave %" PRIu64
