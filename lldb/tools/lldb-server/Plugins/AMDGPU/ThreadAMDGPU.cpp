@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 #include "ThreadAMDGPU.h"
 #include "ProcessAMDGPU.h"
+#include <limits>
 
 using namespace lldb_private;
 using namespace lldb_server;
@@ -20,7 +21,7 @@ ThreadAMDGPU::ThreadAMDGPU(ProcessAMDGPU &process, lldb::tid_t tid,
 }
 
 std::unique_ptr<ThreadAMDGPU> ThreadAMDGPU::CreateGPUShadowThread(ProcessAMDGPU &process) {
-  enum {AMDGPU_SHADOW_THREAD_ID = 0};
+  enum { AMDGPU_SHADOW_THREAD_ID = 1 };
   return std::make_unique<ThreadAMDGPU>(process, AMDGPU_SHADOW_THREAD_ID, nullptr);
 }
 
