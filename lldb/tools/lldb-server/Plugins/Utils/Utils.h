@@ -10,6 +10,7 @@
 #define LLDB_TOOLS_LLDB_SERVER_UTILS_H
 
 #include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
+#include "lldb/Host/common/NativeThreadProtocol.h"
 #include "llvm/Support/Error.h"
 
 namespace lldb_private::lldb_server {
@@ -38,6 +39,82 @@ template <typename... Args>
 /// Get a user-friendly string representation of a state.
 llvm::StringRef StateToString(lldb::StateType state);
 
+/// Helper class to provide range-based iteration over
+/// std::vector<std::unique_ptr<NativeThreadProtocol>> with automatic casting to
+/// the underlying thread `T&` type.
+template <typename T> class GPUThreadRange {
+public:
+  /// Iterator class that automatically casts to the underlying thread `T&`
+  /// type.
+  class iterator {
+  public:
+    /// Constructor for the iterator.
+    ///
+    /// \param[in] it
+    ///     Iterator to the underlying thread container.
+    iterator(std::vector<std::unique_ptr<NativeThreadProtocol>>::iterator it)
+        : m_it(it) {}
+
+    /// Dereference operator with automatic casting to underlying thread `T&`
+    /// type.
+    ///
+    /// \return
+    ///     Reference to Thread object.
+    T &operator*() const { return static_cast<T &>(**m_it); }
+
+    /// Pre-increment operator.
+    ///
+    /// \return
+    ///     Reference to incremented iterator.
+    iterator &operator++() {
+      ++m_it;
+      return *this;
+    }
+
+    /// InEquality comparison operator.
+    ///
+    /// \param[in] other
+    ///     Iterator to compare against.
+    ///
+    /// \return
+    ///     True if iterators are not equal, false otherwise.
+    bool operator!=(const iterator &other) const { return m_it != other.m_it; }
+
+    /// Equality comparison operator.
+    ///
+    /// \param[in] other
+    ///     Iterator to compare against.
+    ///
+    /// \return
+    ///     True if iterators are equal, false otherwise.
+    bool operator==(const iterator &other) const { return m_it == other.m_it; }
+
+  private:
+    std::vector<std::unique_ptr<NativeThreadProtocol>>::iterator m_it;
+  };
+
+  /// Constructor for the range object.
+  ///
+  /// \param[in] threads
+  ///     Reference to the thread container.
+  GPUThreadRange(std::vector<std::unique_ptr<NativeThreadProtocol>> &threads)
+      : m_threads(threads) {}
+
+  /// Get iterator to the beginning of the range.
+  ///
+  /// \return
+  ///     Iterator pointing to the first element.
+  iterator begin() { return iterator(m_threads.begin()); }
+
+  /// Get iterator to the end of the range.
+  ///
+  /// \return
+  ///     Iterator pointing past the last element.
+  iterator end() { return iterator(m_threads.end()); }
+
+private:
+  std::vector<std::unique_ptr<NativeThreadProtocol>> &m_threads;
+};
 } // namespace lldb_private::lldb_server
 
 #endif // LLDB_TOOLS_LLDB_SERVER_UTILS_H
