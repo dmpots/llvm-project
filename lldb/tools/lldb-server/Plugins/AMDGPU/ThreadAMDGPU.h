@@ -9,11 +9,12 @@
 #ifndef LLDB_TOOLS_LLDB_SERVER_THREADAMDGPU_H
 #define LLDB_TOOLS_LLDB_SERVER_THREADAMDGPU_H
 
+#include "Plugins/Utils/Utils.h"
 #include "RegisterContextAMDGPU.h"
 #include "lldb/Host/common/NativeThreadProtocol.h"
 #include "lldb/lldb-private-forward.h"
-#include <string>
 #include <amd-dbgapi/amd-dbgapi.h>
+#include <string>
 
 namespace lldb_private {
 namespace lldb_server {
@@ -69,6 +70,8 @@ private:
   std::string m_stop_description;
   std::optional<amd_dbgapi_wave_id_t> m_wave_id;
 };
+
+using AMDGPUThreadRange = GPUThreadRange<ThreadAMDGPU>;
 } // namespace lldb_server
 } // namespace lldb_private
 
