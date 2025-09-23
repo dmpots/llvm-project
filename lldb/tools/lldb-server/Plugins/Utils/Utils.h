@@ -44,7 +44,8 @@ llvm::StringRef StateToString(lldb::StateType state);
 /// the underlying thread `T&` type.
 template <typename T> class GPUThreadRange {
 public:
-  /// Iterator class that automatically casts to the underlying thread `T&` type.
+  /// Iterator class that automatically casts to the underlying thread `T&`
+  /// type.
   class iterator {
   public:
     /// Constructor for the iterator.
@@ -54,7 +55,8 @@ public:
     iterator(std::vector<std::unique_ptr<NativeThreadProtocol>>::iterator it)
         : m_it(it) {}
 
-    /// Dereference operator with automatic casting to underlying thread `T&` type.
+    /// Dereference operator with automatic casting to underlying thread `T&`
+    /// type.
     ///
     /// \return
     ///     Reference to Thread object.
