@@ -41,10 +41,10 @@ llvm::StringRef StateToString(lldb::StateType state);
 
 /// Helper class to provide range-based iteration over
 /// std::vector<std::unique_ptr<NativeThreadProtocol>> with automatic casting to
-/// T&.
+/// the underlying thread `T&` type.
 template <typename T> class GPUThreadRange {
 public:
-  /// Iterator class that automatically casts to ThreadNVIDIAGPU&.
+  /// Iterator class that automatically casts to the underlying thread `T&` type.
   class iterator {
   public:
     /// Constructor for the iterator.
@@ -54,10 +54,10 @@ public:
     iterator(std::vector<std::unique_ptr<NativeThreadProtocol>>::iterator it)
         : m_it(it) {}
 
-    /// Dereference operator with automatic casting to ThreadNVIDIAGPU&.
+    /// Dereference operator with automatic casting to underlying thread `T&` type.
     ///
     /// \return
-    ///     Reference to ThreadNVIDIAGPU object.
+    ///     Reference to Thread object.
     T &operator*() const { return static_cast<T &>(**m_it); }
 
     /// Pre-increment operator.
