@@ -13,9 +13,10 @@
 
 #ifndef LLDB_TOOLS_LLDB_SERVER_AMDDBGAPIHELPERS_H
 #define LLDB_TOOLS_LLDB_SERVER_AMDDBGAPIHELPERS_H
+#include <algorithm>
 #include <amd-dbgapi/amd-dbgapi.h>
-#include <bitset>
 #include <string>
+#include <vector>
 
 namespace lldb_private {
 namespace lldb_server {
@@ -49,13 +50,12 @@ struct AmdDbgApiEventSet {
   AmdDbgApiEventSet() = default;
 
   void AddEvent(amd_dbgapi_event_kind_t event_kind) {
-    assert(event_kind < m_events.size());
-    m_events.set(event_kind);
+    m_events.push_back(event_kind);
   }
 
   bool HasEvent(amd_dbgapi_event_kind_t event_kind) const {
-    assert(event_kind < m_events.size());
-    return m_events.test(event_kind);
+    return std::find(m_events.begin(), m_events.end(), event_kind) !=
+           m_events.end();
   }
 
   bool HasWaveStopEvent() const {
@@ -67,23 +67,20 @@ struct AmdDbgApiEventSet {
   }
 
   std::string ToString() const {
-    std::string s;
+    std::string s("[");
     for (size_t i = 0; i < m_events.size(); ++i) {
-      if (m_events[i]) {
-        if (!s.empty())
-          s += "|";
-        s +=
-            AmdDbgApiEventKindToString(static_cast<amd_dbgapi_event_kind_t>(i));
-      }
+      if (i != 0)
+        s += ", ";
+      s += AmdDbgApiEventKindToString(m_events[i]);
     }
-    return s;
+    return s + "]";
   }
 
 private:
-  // Currently we only have 7 event kinds.
-  // Allocate a bit of extra space so that we can accommodate more events
-  // without modifying this size. 32 is a nice even number.
-  std::bitset<32> m_events;
+  // Keep track of events we have seen.
+  // We use a vector to aid in debugging so that we can track both the
+  // order of events and allow duplicates.
+  std::vector<amd_dbgapi_event_kind_t> m_events;
 };
 } // namespace lldb_server
 } // namespace lldb_private
