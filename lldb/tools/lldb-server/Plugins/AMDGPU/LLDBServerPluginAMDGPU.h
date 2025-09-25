@@ -98,8 +98,16 @@ private:
                                     amd_dbgapi_status_t status);
 
   bool HandleGPUInternalBreakpointHit(const GPUInternalBreakpoinInfo &bp);
+  // An enum to control how to process the target event in `process_event_queue`
+  // If the boundary is inclusive, the event will be handled and marked as
+  // processed. If the boundary is exclusive, the event will not be handled and
+  // left as unprocessed. An event is marked as processed by calling
+  // `amd_dbgapi_event_processed`. An unprocessed event can be retrieved from
+  // the returned event set by calling `GetLastEventID()`.
+  enum EventBoundaryType { ProcessEventInclusive, ProcessEventExclusive };
   AmdDbgApiEventSet
-  process_event_queue(amd_dbgapi_event_kind_t until_event_kind);
+  process_event_queue(amd_dbgapi_event_kind_t until_event_kind,
+                      EventBoundaryType boundary_type = ProcessEventInclusive);
   bool processGPUEvent();
   bool SetGPUBreakpoint(uint64_t addr, const uint8_t *bp_instruction,
                         size_t size);

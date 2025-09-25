@@ -49,9 +49,13 @@ static const char *AmdDbgApiEventKindToString(amd_dbgapi_event_kind_t kind) {
 struct AmdDbgApiEventSet {
   AmdDbgApiEventSet() = default;
 
-  void AddEvent(amd_dbgapi_event_kind_t event_kind) {
+  void SetLastEvent(amd_dbgapi_event_id_t event_id,
+                    amd_dbgapi_event_kind_t event_kind) {
+    m_last_event_id = event_id;
     m_events.push_back(event_kind);
   }
+
+  amd_dbgapi_event_id_t GetLastEventID() const { return m_last_event_id; }
 
   bool HasEvent(amd_dbgapi_event_kind_t event_kind) const {
     return std::find(m_events.begin(), m_events.end(), event_kind) !=
@@ -81,6 +85,7 @@ private:
   // We use a vector to aid in debugging so that we can track both the
   // order of events and allow duplicates.
   std::vector<amd_dbgapi_event_kind_t> m_events;
+  amd_dbgapi_event_id_t m_last_event_id = AMD_DBGAPI_EVENT_NONE;
 };
 } // namespace lldb_server
 } // namespace lldb_private

@@ -536,7 +536,8 @@ bool LLDBServerPluginAMDGPU::HandleGPUInternalBreakpointHit(
 }
 
 AmdDbgApiEventSet LLDBServerPluginAMDGPU::process_event_queue(
-    amd_dbgapi_event_kind_t until_event_kind) {
+    amd_dbgapi_event_kind_t until_event_kind,
+    EventBoundaryType event_boundary) {
   LLDB_LOGF(GetLog(GDBRLog::Plugin), "Processing event queue");
   AmdDbgApiEventSet events;
   while (true) {
@@ -551,9 +552,14 @@ AmdDbgApiEventSet LLDBServerPluginAMDGPU::process_event_queue(
       break;
     }
 
-    events.AddEvent(event_kind);
-
-    GetGPUProcess()->handleDebugEvent(event_id, event_kind);
+    // We will handle this event if it is not the target event kind or if
+    // it is the target event kind and we were told to handle it inclusively.
+    const bool handle_this_event = event_kind != until_event_kind ||
+                                   event_boundary == ProcessEventInclusive;
+    events.SetLastEvent(event_id, event_kind);
+    if (handle_this_event) {
+      GetGPUProcess()->handleDebugEvent(event_id, event_kind);
+    }
 
     if (event_kind == until_event_kind)
       break;
