@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ProcessAMDGPU.h"
+#include "AmdDbgApiHelpers.h"
 #include "ThreadAMDGPU.h"
 
 #include "LLDBServerPluginAMDGPU.h"
@@ -329,42 +330,22 @@ bool ProcessAMDGPU::handleWaveStop(amd_dbgapi_event_id_t eventId) {
   return false;
 }
 
-static const char *event_kind_str(amd_dbgapi_event_kind_t kind) {
-  switch (kind) {
-  case AMD_DBGAPI_EVENT_KIND_NONE:
-    return "NONE";
-
-  case AMD_DBGAPI_EVENT_KIND_WAVE_STOP:
-    return "WAVE_STOP";
-
-  case AMD_DBGAPI_EVENT_KIND_WAVE_COMMAND_TERMINATED:
-    return "WAVE_COMMAND_TERMINATED";
-
-  case AMD_DBGAPI_EVENT_KIND_CODE_OBJECT_LIST_UPDATED:
-    return "CODE_OBJECT_LIST_UPDATED";
-
-  case AMD_DBGAPI_EVENT_KIND_BREAKPOINT_RESUME:
-    return "BREAKPOINT_RESUME";
-
-  case AMD_DBGAPI_EVENT_KIND_RUNTIME:
-    return "RUNTIME";
-
-  case AMD_DBGAPI_EVENT_KIND_QUEUE_ERROR:
-    return "QUEUE_ERROR";
-  }
-  assert(false && "unhandled amd_dbgapi_event_kind_t value");
-}
-
 bool ProcessAMDGPU::handleDebugEvent(amd_dbgapi_event_id_t eventId,
                                      amd_dbgapi_event_kind_t eventKind) {
   LLDB_LOGF(GetLog(GDBRLog::Plugin), "handleDebugEvent(%" PRIu64 ", %s)",
-            eventId.handle, event_kind_str(eventKind));
+            eventId.handle, AmdDbgApiEventKindToString(eventKind));
   bool result = false;
-  if (eventKind == AMD_DBGAPI_EVENT_KIND_NONE)
-    return result;
 
   // Handle event kinds
   switch (eventKind) {
+  case AMD_DBGAPI_EVENT_KIND_NONE:
+    LLDB_LOGF(GetLog(GDBRLog::Plugin), "No event received");
+    break;
+
+  case AMD_DBGAPI_EVENT_KIND_BREAKPOINT_RESUME:
+    LLDB_LOGF(GetLog(GDBRLog::Plugin), "Breakpoint resume event received");
+    break;
+
   case AMD_DBGAPI_EVENT_KIND_WAVE_STOP: {
     LLDB_LOGF(GetLog(GDBRLog::Plugin), "Wave stop event received");
 
@@ -447,6 +428,10 @@ bool ProcessAMDGPU::handleDebugEvent(amd_dbgapi_event_id_t eventId,
     LLDB_LOGF(GetLog(GDBRLog::Plugin), "Unknown event kind: %d", eventKind);
     break;
   }
+
+  if (eventKind != AMD_DBGAPI_EVENT_KIND_NONE)
+    amd_dbgapi_event_processed(eventId);
+
   return result;
 }
 
