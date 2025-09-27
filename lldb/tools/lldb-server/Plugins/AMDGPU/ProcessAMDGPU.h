@@ -98,6 +98,10 @@ public:
     return m_gpu_module_manager.HasChangedCodeObjects();
   }
 
+  amd_dbgapi_process_id_t GetDbgApiProcessID() const {
+    return amd_dbgapi_process_id_t{m_pid};
+  }
+
   LLDBServerPluginAMDGPU* m_debugger = nullptr;
   GpuModuleManager m_gpu_module_manager;
 

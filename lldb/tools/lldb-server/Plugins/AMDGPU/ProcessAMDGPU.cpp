@@ -536,7 +536,7 @@ std::vector<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
   // TODO: Stop creating new waves.
 
   // Get the list of waves
-  amd_dbgapi_process_id_t pid = m_debugger->GetDbgApiNativeProcessID();
+  amd_dbgapi_process_id_t pid = GetDbgApiProcessID();
   amd_dbgapi_wave_id_t *wave_list = nullptr;
   size_t count = 0;
   amd_dbgapi_changed_t changed = AMD_DBGAPI_CHANGED_NO;
