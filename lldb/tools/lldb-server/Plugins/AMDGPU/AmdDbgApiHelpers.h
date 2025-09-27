@@ -13,6 +13,9 @@
 
 #ifndef LLDB_TOOLS_LLDB_SERVER_AMDDBGAPIHELPERS_H
 #define LLDB_TOOLS_LLDB_SERVER_AMDDBGAPIHELPERS_H
+#include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
+#include "lldb/Utility/Log.h"
+#include "llvm/Support/Error.h"
 #include <algorithm>
 #include <amd-dbgapi/amd-dbgapi.h>
 #include <cassert>
@@ -314,6 +317,47 @@ struct WaveIdHash {
   std::size_t operator()(const amd_dbgapi_wave_id_t &wave_id) const noexcept {
     return std::hash<uint64_t>{}(wave_id.handle);
   }
+};
+
+// Run a command from the amd-dbgapi library and return an llvm::Error if not
+// successful.
+inline llvm::Error
+RunAmdDbgApiCommand(std::function<amd_dbgapi_status_t()> func) {
+  amd_dbgapi_status_t status = func();
+  if (status != AMD_DBGAPI_STATUS_SUCCESS)
+    return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                   "AMD_DBGAPI_STATUS_ERROR: %s",
+                                   AmdDbgApiStatusToString(status));
+  return llvm::Error::success();
+}
+
+// RAII-style wrapper to stop creating waves on construction and resume on
+// destruction. Logs failures stopping or starting waves, but does not otherwise
+// propagate the errors.
+struct AmdDbgApiWaveCreationStopper {
+  explicit AmdDbgApiWaveCreationStopper(amd_dbgapi_process_id_t pid)
+      : m_pid(pid) {
+    if (llvm::Error error = RunAmdDbgApiCommand([this] {
+          return amd_dbgapi_process_set_wave_creation(
+              m_pid, AMD_DBGAPI_WAVE_CREATION_STOP);
+        })) {
+      LogError("Error stopping wave creation", std::move(error));
+    }
+  }
+  ~AmdDbgApiWaveCreationStopper() {
+    if (llvm::Error error = RunAmdDbgApiCommand([this] {
+          return amd_dbgapi_process_set_wave_creation(
+              m_pid, AMD_DBGAPI_WAVE_CREATION_NORMAL);
+        })) {
+      LogError("Error resuming wave creation", std::move(error));
+    }
+  }
+
+  void LogError(const char *msg, llvm::Error &&error) {
+    Log *log = GetLog(process_gdb_remote::GDBRLog::Plugin);
+    LLDB_LOGF(log, "%s: %s", msg, llvm::toString(std::move(error)).c_str());
+  }
+  amd_dbgapi_process_id_t m_pid = AMD_DBGAPI_PROCESS_NONE;
 };
 
 // Convenient typedef for unordered_set of wave IDs with custom hasher.

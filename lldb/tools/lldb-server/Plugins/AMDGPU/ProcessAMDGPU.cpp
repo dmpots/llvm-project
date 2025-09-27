@@ -533,7 +533,9 @@ ProcessAMDGPU::GetWaveInfo(amd_dbgapi_wave_id_t wave_id) {
 std::vector<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
   Log *log = GetLog(GDBRLog::Plugin);
 
-  // TODO: Stop creating new waves.
+  // Stop creating new waves while we collect wave info to get an accurate
+  // count.
+  AmdDbgApiWaveCreationStopper no_new_waves(GetDbgApiProcessID());
 
   // Get the list of waves
   amd_dbgapi_process_id_t pid = GetDbgApiProcessID();
