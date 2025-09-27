@@ -117,8 +117,11 @@ public:
 private:
   WaveIdMap<std::shared_ptr<WaveAMDGPU>> m_waves;
   std::vector<amd_dbgapi_wave_id_t> UpdateWaves();
+  llvm::Expected<DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t>>
+  GetWaveList(size_t *count, amd_dbgapi_changed_t *changed);
   llvm::Expected<DbgApiWaveInfo> GetWaveInfo(amd_dbgapi_wave_id_t wave_id);
   void UpdateThreadListFromWaves();
+  void LogError(llvm::StringRef msg, llvm::Error err);
 };
 
 class ProcessManagerAMDGPU : public NativeProcessProtocol::Manager {

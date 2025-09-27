@@ -530,9 +530,13 @@ ProcessAMDGPU::GetWaveInfo(amd_dbgapi_wave_id_t wave_id) {
   return wave_info;
 }
 
-std::vector<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
-  Log *log = GetLog(GDBRLog::Plugin);
+void ProcessAMDGPU::LogError(llvm::StringRef msg, llvm::Error err) {
+  LLDB_LOGF(GetLog(GDBRLog::Plugin), "Error: %s, %s", msg.str().c_str(),
+            llvm::toString(std::move(err)).c_str());
+}
 
+llvm::Expected<DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t>>
+ProcessAMDGPU::GetWaveList(size_t *count, amd_dbgapi_changed_t *changed) {
   // Stop creating new waves while we collect wave info to get an accurate
   // count.
   AmdDbgApiWaveCreationStopper no_new_waves(GetDbgApiProcessID());
@@ -540,21 +544,31 @@ std::vector<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
   // Get the list of waves
   amd_dbgapi_process_id_t pid = GetDbgApiProcessID();
   amd_dbgapi_wave_id_t *wave_list = nullptr;
+  if (auto error = RunAmdDbgApiCommand([&] {
+        return amd_dbgapi_process_wave_list(pid, count, &wave_list, changed);
+      }))
+    return error;
+
+  // Make sure we free the memory allocated by the dbgapi.
+  return DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t>(wave_list);
+}
+
+std::vector<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
+  Log *log = GetLog(GDBRLog::Plugin);
+
+  // Get the list of waves
   size_t count = 0;
   amd_dbgapi_changed_t changed = AMD_DBGAPI_CHANGED_NO;
-  amd_dbgapi_status_t status =
-      amd_dbgapi_process_wave_list(pid, &count, &wave_list, &changed);
-  if (status != AMD_DBGAPI_STATUS_SUCCESS) {
-    LLDB_LOGF(log, "Failed to get wave list: %d", status);
+  auto maybe_wave_list = GetWaveList(&count, &changed);
+  if (!maybe_wave_list) {
+    LogError("Failed to get wave list", maybe_wave_list.takeError());
     m_waves.clear();
     return {};
   }
-
-  // Make sure we free the memory allocated by the dbgapi.
-  DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t> wave_list_owner(wave_list);
+  amd_dbgapi_wave_id_t *wave_list = maybe_wave_list->get();
 
   if (changed == AMD_DBGAPI_CHANGED_NO) {
-    LLDB_LOGF(log, "No changes in wave list: %d", status);
+    LLDB_LOGF(log, "No changes in wave list");
     return {};
   }
 
