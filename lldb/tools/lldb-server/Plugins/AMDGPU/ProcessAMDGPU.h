@@ -116,7 +116,7 @@ public:
 
 private:
   WaveIdMap<std::shared_ptr<WaveAMDGPU>> m_waves;
-  std::vector<amd_dbgapi_wave_id_t> UpdateWaves();
+  WaveIdList UpdateWaves();
   llvm::Expected<DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t>>
   GetWaveList(size_t *count, amd_dbgapi_changed_t *changed);
   llvm::Expected<DbgApiWaveInfo> GetWaveInfo(amd_dbgapi_wave_id_t wave_id);

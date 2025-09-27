@@ -331,35 +331,6 @@ RunAmdDbgApiCommand(std::function<amd_dbgapi_status_t()> func) {
   return llvm::Error::success();
 }
 
-// RAII-style wrapper to stop creating waves on construction and resume on
-// destruction. Logs failures stopping or starting waves, but does not otherwise
-// propagate the errors.
-struct AmdDbgApiWaveCreationStopper {
-  explicit AmdDbgApiWaveCreationStopper(amd_dbgapi_process_id_t pid)
-      : m_pid(pid) {
-    if (llvm::Error error = RunAmdDbgApiCommand([this] {
-          return amd_dbgapi_process_set_wave_creation(
-              m_pid, AMD_DBGAPI_WAVE_CREATION_STOP);
-        })) {
-      LogError("Error stopping wave creation", std::move(error));
-    }
-  }
-  ~AmdDbgApiWaveCreationStopper() {
-    if (llvm::Error error = RunAmdDbgApiCommand([this] {
-          return amd_dbgapi_process_set_wave_creation(
-              m_pid, AMD_DBGAPI_WAVE_CREATION_NORMAL);
-        })) {
-      LogError("Error resuming wave creation", std::move(error));
-    }
-  }
-
-  void LogError(const char *msg, llvm::Error &&error) {
-    Log *log = GetLog(process_gdb_remote::GDBRLog::Plugin);
-    LLDB_LOGF(log, "%s: %s", msg, llvm::toString(std::move(error)).c_str());
-  }
-  amd_dbgapi_process_id_t m_pid = AMD_DBGAPI_PROCESS_NONE;
-};
-
 // Convenient typedef for unordered_set of wave IDs with custom hasher.
 using WaveIdSet = std::unordered_set<amd_dbgapi_wave_id_t, WaveIdHash>;
 

@@ -537,23 +537,36 @@ void ProcessAMDGPU::LogError(llvm::StringRef msg, llvm::Error err) {
 
 llvm::Expected<DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t>>
 ProcessAMDGPU::GetWaveList(size_t *count, amd_dbgapi_changed_t *changed) {
-  // Stop creating new waves while we collect wave info to get an accurate
-  // count.
+  // Stop creating new waves get an accurate count.
   AmdDbgApiWaveCreationStopper no_new_waves(GetDbgApiProcessID());
+  if (llvm::Error error = RunAmdDbgApiCommand([this] {
+        return amd_dbgapi_process_set_wave_creation(
+            GetDbgApiProcessID(), AMD_DBGAPI_WAVE_CREATION_STOP);
+      }))
+    return error;
 
   // Get the list of waves
-  amd_dbgapi_process_id_t pid = GetDbgApiProcessID();
   amd_dbgapi_wave_id_t *wave_list = nullptr;
   if (auto error = RunAmdDbgApiCommand([&] {
-        return amd_dbgapi_process_wave_list(pid, count, &wave_list, changed);
+        return amd_dbgapi_process_wave_list(GetDbgApiProcessID(), count,
+                                            &wave_list, changed);
       }))
     return error;
 
   // Make sure we free the memory allocated by the dbgapi.
-  return DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t>(wave_list);
+  DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t> wave_list_owner(wave_list);
+
+  // Allow new waves to be created again.
+  if (llvm::Error error = RunAmdDbgApiCommand([this] {
+        return amd_dbgapi_process_set_wave_creation(
+            GetDbgApiProcessID(), AMD_DBGAPI_WAVE_CREATION_NORMAL);
+      }))
+    return error;
+
+  return wave_list_owner;
 }
 
-std::vector<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
+WaveIdList ProcessAMDGPU::UpdateWaves() {
   Log *log = GetLog(GDBRLog::Plugin);
 
   // Get the list of waves
@@ -576,7 +589,7 @@ std::vector<amd_dbgapi_wave_id_t> ProcessAMDGPU::UpdateWaves() {
   // Any waves that we fail to get info for are considered dead.
   // Keep track of which waves are new so we can return them to the caller.
   WaveIdSet live_waves;
-  std::vector<amd_dbgapi_wave_id_t> new_waves;
+  WaveIdList new_waves;
   for (size_t i = 0; i < count; ++i) {
     amd_dbgapi_wave_id_t wave_id = wave_list[i];
 
