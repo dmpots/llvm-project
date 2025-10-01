@@ -135,6 +135,13 @@ private:
   AmdDbgApiState m_amd_dbg_api_state = AmdDbgApiState::Uninitialized;
 };
 
+// Helper to free memory with custom deleter for unique_ptr.
+inline void DbgApiClientMemoryDeleter::operator()(void *ptr) const {
+  if (ptr) {
+    LLDBServerPluginAMDGPU::FreeDbgApiClientMemory(ptr);
+  }
+}
+
 } // namespace lldb_server
 } // namespace lldb_private
 
