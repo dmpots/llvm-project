@@ -93,8 +93,11 @@ class BasicAmdGpuTestCase(AmdGpuTestCaseBase):
         total_num_threads = len("Hello, world!")
         self.assertEqual(len(gpu_threads), total_num_threads)
 
-        # But only 1 thread should be stopped at the breakpoint.
-        self.assertEqual(len(gpu_threads_at_bp), 1)
+        # Since all the threads are in the same wave, they all share the same pc
+        # and should be stopped at the same breakpoint. At some point, we need to
+        # represent active/inactive threads in lldb, but that support does not yet
+        # exist.
+        self.assertEqual(len(gpu_threads_at_bp), total_num_threads)
 
     def test_no_unexpected_stop(self):
         """Test that we do not unexpectedly hit a stop in the debugger when
