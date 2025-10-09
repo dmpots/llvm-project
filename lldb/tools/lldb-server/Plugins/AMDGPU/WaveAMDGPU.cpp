@@ -13,15 +13,65 @@
 //===----------------------------------------------------------------------===//
 
 #include "WaveAMDGPU.h"
+#include "AmdDbgApiHelpers.h"
+#include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
 #include "ThreadAMDGPU.h"
+#include "lldb/Utility/Log.h"
 #include "lldb/lldb-enumerations.h"
-#include "llvm/ADT/bit.h"
+#include "llvm/Support/MathExtras.h"
+#include <amd-dbgapi/amd-dbgapi.h>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 using namespace lldb_private;
 using namespace lldb_server;
+using namespace lldb_private::process_gdb_remote;
 
-// Reserve a contiguous range of thread IDs for a wave.
+template <typename T>
+static llvm::Error QueryDispatchInfo(amd_dbgapi_dispatch_id_t dispatch_id,
+                                     amd_dbgapi_dispatch_info_t info_type,
+                                     T *dest) {
+  amd_dbgapi_status_t status =
+      amd_dbgapi_dispatch_get_info(dispatch_id, info_type, sizeof(*dest), dest);
+  if (status != AMD_DBGAPI_STATUS_SUCCESS) {
+    return llvm::createStringError(
+        llvm::inconvertibleErrorCode(),
+        "Failed to get %s for dispatch %" PRIu64 ": status=%s",
+        AmdDbgApiDispatchInfoKindToString(info_type), dispatch_id.handle,
+        AmdDbgApiStatusToString(status));
+  }
+  return llvm::Error::success();
+}
+
+static llvm::Expected<size_t>
+ComputeNumLanesInWave(const DbgApiWaveInfo &wave_info) {
+  uint16_t workgroup_sizes[3];
+  if (llvm::Error err = QueryDispatchInfo(
+          wave_info.dispatch_id, AMD_DBGAPI_DISPATCH_INFO_WORKGROUP_SIZES,
+          &workgroup_sizes))
+    return err;
+
+  // Compute the total number of threads and waves.
+  const size_t wave_size = wave_info.num_lanes_supported;
+  const size_t total_num_lanes =
+      workgroup_sizes[0] * workgroup_sizes[1] * workgroup_sizes[2];
+  const size_t num_waves =
+      std::max(llvm::divideCeil(total_num_lanes, wave_size), size_t(1));
+
+  // Most waves have a full wave_size worth of lanes.
+  size_t num_lanes = wave_size;
+
+  // If this is the last wave, it may not have a full wave_size worth of lanes.
+  const bool is_last_wave = wave_info.index_in_workgroup == num_waves - 1;
+  if (is_last_wave) {
+    const size_t num_lanes_with_full_waves = (num_waves - 1) * wave_size;
+    num_lanes = total_num_lanes - num_lanes_with_full_waves;
+  }
+
+  return num_lanes;
+}
+
 // This is used to have a unique thread ID for each thread.
 // Returns the base thread ID for the wave.
 static lldb::tid_t ReserveTidsForWave(size_t num_lanes) {
@@ -39,12 +89,22 @@ static lldb::tid_t ReserveTidsForWave(size_t num_lanes) {
 void WaveAMDGPU::AddThreadsToList(
     ProcessAMDGPU &process,
     std::vector<std::unique_ptr<NativeThreadProtocol>> &threads) {
+  Log *log = GetLog(GDBRLog::Plugin);
 
-  size_t num_lanes = llvm::popcount(m_wave_info.exec_mask);
-  lldb::tid_t tid_base = ReserveTidsForWave(num_lanes);
+  // Reserve a contiguous range of thread IDs for this wave.
+  llvm::Expected<size_t> num_lanes = ComputeNumLanesInWave(m_wave_info);
+  if (!num_lanes) {
+    LLDB_LOG_ERROR(log, num_lanes.takeError(),
+                   "Failed to compute number of lanes for wave {1}. {0}.",
+                   m_wave_id.handle);
+    return;
+  }
+  lldb::tid_t tid_base = ReserveTidsForWave(*num_lanes);
 
   // Create a thread for each lane in the wave.
-  for (size_t i = 0; i < num_lanes; ++i) {
+  LLDB_LOG(log, "Creating {} threads for wave {}", *num_lanes,
+           m_wave_id.handle);
+  for (size_t i = 0; i < *num_lanes; ++i) {
     lldb::tid_t tid = tid_base + i;
     threads.push_back(
         std::make_unique<ThreadAMDGPU>(process, tid, shared_from_this()));
