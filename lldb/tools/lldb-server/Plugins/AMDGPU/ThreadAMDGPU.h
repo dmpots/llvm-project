@@ -74,6 +74,8 @@ public:
 
   bool IsShadowThread() const { return m_wave == nullptr; }
 
+  static constexpr lldb::pid_t AMDGPU_SHADOW_THREAD_ID = 1;
+
 private:
   // Member Variables
   lldb::StateType m_state;
