@@ -223,7 +223,6 @@ Status LLDBServerPluginAMDGPU::AttachAmdDbgApi() {
     return HandleAmdDbgApiAttachError(error.AsCString(),
                                       AMD_DBGAPI_STATUS_ERROR);
   }
-  GetGPUProcess()->UpdateThreads();
 
   // Process all pending events
   LLDB_LOGF(log, "%s Processing any pending dbgapi events", __FUNCTION__);
@@ -419,7 +418,11 @@ Status LLDBServerPluginAMDGPU::CreateGpuProcess() {
   info.SetProcessID(m_gpu_pid.handle);
   m_gdb_server->SetLaunchInfo(info);
 
-  return m_gdb_server->LaunchProcess();
+  Status status = m_gdb_server->LaunchProcess();
+  if (status.Success()) {
+    GetGPUProcess()->UpdateThreads();
+  }
+  return status;
 }
 
 bool LLDBServerPluginAMDGPU::ReadyToSendConnectionRequest() {
