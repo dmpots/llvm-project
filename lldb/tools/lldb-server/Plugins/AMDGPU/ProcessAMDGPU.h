@@ -121,6 +121,9 @@ private:
   GetWaveList(size_t *count, amd_dbgapi_changed_t *changed);
   llvm::Expected<DbgApiWaveInfo> GetWaveInfo(amd_dbgapi_wave_id_t wave_id);
   void UpdateThreadListFromWaves();
+  ThreadAMDGPU *FindThread(std::function<bool(ThreadAMDGPU &)> pred);
+  lldb::tid_t ChooseCurrentThread();
+  void UpdateCurrentThread();
 };
 
 class ProcessManagerAMDGPU : public NativeProcessProtocol::Manager {

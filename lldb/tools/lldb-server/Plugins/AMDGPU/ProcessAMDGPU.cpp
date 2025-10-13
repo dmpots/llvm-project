@@ -15,8 +15,11 @@
 #include "lldb/Host/ProcessLaunchInfo.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/ProcessInfo.h"
+#include "lldb/Utility/State.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/UnimplementedError.h"
+#include "lldb/lldb-defines.h"
+#include "lldb/lldb-types.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/Support/Error.h"
@@ -86,12 +89,66 @@ lldb::addr_t ProcessAMDGPU::GetSharedLibraryInfoAddress() {
   return LLDB_INVALID_ADDRESS;
 }
 
+ThreadAMDGPU *
+ProcessAMDGPU::FindThread(std::function<bool(ThreadAMDGPU &)> pred) {
+  for (ThreadAMDGPU &thread : AMDGPUThreadRange(m_threads)) {
+    if (pred(thread))
+      return &thread;
+  }
+  return nullptr;
+}
+
+// Select which thread should be considered the "current thread" in the process.
+lldb::tid_t ProcessAMDGPU::ChooseCurrentThread() {
+  // Helper to find the thread with the matching ID from GetCurrentThreadID.
+  // Note this thread may no longer exist in the threads vector if its
+  // owning wave has completed execution.
+  auto GetCurrentThread = [this]() {
+    const lldb::tid_t current_tid = GetCurrentThreadID();
+    return FindThread([current_tid](ThreadAMDGPU &thread) {
+      return current_tid == thread.GetID();
+    });
+  };
+
+  // Helper to find the first thread with a valid stop reason.
+  auto GetFirstThreadWithValidStopReason = [this]() {
+    return FindThread([](ThreadAMDGPU &thread) {
+      return StateIsStoppedState(thread.GetState(), /*must_exist=*/true);
+    });
+  };
+
+  // Return an invalid id when there are no threads.
+  if (m_threads.empty())
+    return LLDB_INVALID_THREAD_ID;
+
+  // If the current thread has a valid stop reason then use that thread.
+  ThreadAMDGPU *current_thread = GetCurrentThread();
+  if (current_thread &&
+      StateIsStoppedState(current_thread->GetState(), /*must_exist=*/true))
+    return current_thread->GetID();
+
+  // Otherwise, look for a thread with a valid stop reason.
+  if (ThreadAMDGPU *stopped_thread = GetFirstThreadWithValidStopReason())
+    return stopped_thread->GetID();
+
+  // If there are no stopped threads then just return the
+  // current thread if it exists otherwise choose the first stopped thread.
+  return current_thread ? current_thread->GetID() : m_threads.front()->GetID();
+}
+
+// Choose which thread is the current thread and update the current thread ID to
+// match.
+void ProcessAMDGPU::UpdateCurrentThread() {
+  lldb::tid_t tid = ChooseCurrentThread();
+  SetCurrentThreadID(tid);
+}
+
 size_t ProcessAMDGPU::UpdateThreads() {
   UpdateThreadListFromWaves();
   if (m_threads.empty()) {
     m_threads.push_back(ThreadAMDGPU::CreateGPUShadowThread(*this));
   }
-  SetCurrentThreadID(m_threads.back()->GetID());
+  UpdateCurrentThread();
   return m_threads.size();
 }
 
