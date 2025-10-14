@@ -16,8 +16,10 @@
 #define LLDB_TOOLS_LLDB_SERVER_WAVEAMDGPU_H
 #include "RegisterContextAMDGPU.h"
 #include "lldb/Host/common/NativeThreadProtocol.h"
+#include "lldb/lldb-enumerations.h"
 #include <amd-dbgapi/amd-dbgapi.h>
 #include <memory>
+#include <signal.h>
 
 namespace lldb_private {
 namespace lldb_server {
@@ -41,19 +43,38 @@ struct DbgApiWaveInfo {
 
 class WaveAMDGPU : public std::enable_shared_from_this<WaveAMDGPU> {
 public:
-  explicit WaveAMDGPU(amd_dbgapi_wave_id_t wave_id) : m_wave_id(wave_id) {}
+  explicit WaveAMDGPU(amd_dbgapi_wave_id_t wave_id) : m_wave_id(wave_id) {
+    SetStopReason(lldb::eStopReasonSignal, SIGTRAP);
+  }
 
   void
   AddThreadsToList(ProcessAMDGPU &process,
                    std::vector<std::unique_ptr<NativeThreadProtocol>> &threads);
-  void SetDbgApiInfo(const DbgApiWaveInfo &wave_info) {
-    m_wave_info = wave_info;
-  }
+
+  void SetDbgApiInfo(const DbgApiWaveInfo &wave_info);
+
   amd_dbgapi_wave_id_t GetWaveID() { return m_wave_id; }
 
+  bool GetStopReason(ThreadStopInfo &stop_info, std::string &description) {
+    stop_info = m_stop_info;
+    description = m_stop_description;
+    return true;
+  }
+
+  void SetStopReason(lldb::StopReason reason) { m_stop_info.reason = reason; }
+
+  void SetStopReason(lldb::StopReason reason, uint32_t signo) {
+    m_stop_info.reason = reason;
+    m_stop_info.signo = signo;
+  }
+
 private:
+  void UpdateStopReasonFromWaveInfo();
+
   amd_dbgapi_wave_id_t m_wave_id;
   DbgApiWaveInfo m_wave_info;
+  ThreadStopInfo m_stop_info;
+  std::string m_stop_description;
 };
 } // namespace lldb_server
 } // namespace lldb_private

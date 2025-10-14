@@ -7,22 +7,24 @@
 //===----------------------------------------------------------------------===//
 #include "ThreadAMDGPU.h"
 #include "ProcessAMDGPU.h"
+#include "lldb/lldb-enumerations.h"
 #include <limits>
+#include <memory>
 
 using namespace lldb_private;
 using namespace lldb_server;
 
 ThreadAMDGPU::ThreadAMDGPU(ProcessAMDGPU &process, lldb::tid_t tid,
                            std::shared_ptr<WaveAMDGPU> wave)
-    : NativeThreadProtocol(process, tid), m_reg_context(*this), m_wave(wave) {
-  m_stop_info.reason = lldb::eStopReasonSignal;
-  m_stop_info.signo = SIGTRAP;
-}
+    : NativeThreadProtocol(process, tid), m_reg_context(*this), m_wave(wave) {}
 
 std::unique_ptr<ThreadAMDGPU>
 ThreadAMDGPU::CreateGPUShadowThread(ProcessAMDGPU &process) {
-  return std::make_unique<ThreadAMDGPU>(process, AMDGPU_SHADOW_THREAD_ID,
-                                        nullptr);
+  auto shadow_thread = std::make_unique<ThreadAMDGPU>(
+      process, AMDGPU_SHADOW_THREAD_ID,
+      std::make_shared<WaveAMDGPU>(AMD_DBGAPI_WAVE_NONE));
+  shadow_thread->SetStopReason(lldb::eStopReasonSignal, SIGTRAP);
+  return shadow_thread;
 }
 
 // NativeThreadProtocol Interface
@@ -34,13 +36,6 @@ std::string ThreadAMDGPU::GetName() {
 }
 
 lldb::StateType ThreadAMDGPU::GetState() { return lldb::eStateStopped; }
-
-bool ThreadAMDGPU::GetStopReason(ThreadStopInfo &stop_info,
-                                 std::string &description) {
-  stop_info = m_stop_info;
-  description = m_description;
-  return true;
-}
 
 Status ThreadAMDGPU::SetWatchpoint(lldb::addr_t addr, size_t size,
                                    uint32_t watch_flags, bool hardware) {

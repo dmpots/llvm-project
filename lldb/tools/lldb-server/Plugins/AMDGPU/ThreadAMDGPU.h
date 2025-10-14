@@ -41,12 +41,16 @@ public:
   lldb::StateType GetState() override;
 
   bool GetStopReason(ThreadStopInfo &stop_info,
-                     std::string &description) override;
-  
-  void SetStopReason(lldb::StopReason reason) {
-    m_stop_info.reason = reason;
+                     std::string &description) override {
+    return m_wave->GetStopReason(stop_info, description);
   }
-  
+
+  void SetStopReason(lldb::StopReason reason) { m_wave->SetStopReason(reason); }
+
+  void SetStopReason(lldb::StopReason reason, uint32_t signo) {
+    m_wave->SetStopReason(reason, signo);
+  }
+
   RegisterContextAMDGPU &GetRegisterContext() override {
     return m_reg_context;
   }
@@ -64,25 +68,18 @@ public:
 
   const ProcessAMDGPU &GetProcess() const;
 
-  amd_dbgapi_wave_id_t GetWaveID() const {
-    if (!m_wave)
-      return AMD_DBGAPI_WAVE_NONE;
-    return m_wave->GetWaveID();
-  }
+  amd_dbgapi_wave_id_t GetWaveID() const { return m_wave->GetWaveID(); }
 
   WaveAMDGPU *GetWave() const { return m_wave.get(); }
 
-  bool IsShadowThread() const { return m_wave == nullptr; }
+  bool IsShadowThread() const { return GetID() == AMDGPU_SHADOW_THREAD_ID; }
 
-  static constexpr lldb::pid_t AMDGPU_SHADOW_THREAD_ID = 1;
+  static constexpr lldb::tid_t AMDGPU_SHADOW_THREAD_ID = 1;
 
 private:
   // Member Variables
   lldb::StateType m_state;
-  ThreadStopInfo m_stop_info;
-  std::string m_description = "";
   RegisterContextAMDGPU m_reg_context;
-  std::string m_stop_description;
   std::shared_ptr<WaveAMDGPU> m_wave;
 };
 
