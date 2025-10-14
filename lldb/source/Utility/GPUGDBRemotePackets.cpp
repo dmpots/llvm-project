@@ -143,11 +143,12 @@ bool fromJSON(const llvm::json::Value &value, GPUActions &data,
               llvm::json::Path path) {
   ObjectMapper o(value, path);
   return o && o.map("plugin_name", data.plugin_name) &&
+         o.map("identifier", data.identifier) &&
          o.mapOptional("stop_id", data.stop_id) &&
          o.map("breakpoints", data.breakpoints) &&
          o.mapOptional("connect_info", data.connect_info) &&
          o.map("wait_for_gpu_process_to_stop",
-              data.wait_for_gpu_process_to_stop) &&
+               data.wait_for_gpu_process_to_stop) &&
          o.map("load_libraries", data.load_libraries) &&
          o.map("resume_gpu_process", data.resume_gpu_process) &&
          o.map("wait_for_gpu_process_to_resume",
@@ -155,8 +156,19 @@ bool fromJSON(const llvm::json::Value &value, GPUActions &data,
 }
 
 llvm::json::Value toJSON(const GPUActions &data) {
+  // Fatal if identifier is 0 - this indicates the GPUActions was not properly
+  // initialized with a valid identifier.
+  // GPU plugins should initialize their GPUActions objects by calling:
+  //   GPUActions actions = GetNewGPUAction();
+  // This method automatically fills in the plugin_name and assigns a unique
+  // identifier that ensures each action can be tracked and prevents duplicate
+  // processing.
+  assert(data.identifier != 0 &&
+         "GPUActions identifier must be set before serialization");
+
   return json::Value(Object{
       {"plugin_name", data.plugin_name},
+      {"identifier", data.identifier},
       {"stop_id", data.stop_id},
       {"breakpoints", data.breakpoints},
       {"connect_info", data.connect_info},
