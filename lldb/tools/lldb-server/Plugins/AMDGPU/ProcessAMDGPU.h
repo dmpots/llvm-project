@@ -114,6 +114,10 @@ public:
   State m_gpu_state = State::Initializing;
   std::vector<amd_dbgapi_wave_id_t> m_wave_ids;
 
+  ThreadAMDGPU *GetCurrentThreadAMDGPU() {
+    return static_cast<ThreadAMDGPU *>(GetCurrentThread());
+  }
+
 private:
   WaveIdMap<std::shared_ptr<WaveAMDGPU>> m_waves;
   WaveIdList UpdateWaves();

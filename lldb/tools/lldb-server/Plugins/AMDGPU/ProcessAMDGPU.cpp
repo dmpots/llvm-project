@@ -91,6 +91,7 @@ lldb::addr_t ProcessAMDGPU::GetSharedLibraryInfoAddress() {
 
 ThreadAMDGPU *
 ProcessAMDGPU::FindThread(std::function<bool(ThreadAMDGPU &)> pred) {
+  std::lock_guard<std::recursive_mutex> guard(m_threads_mutex);
   for (ThreadAMDGPU &thread : AMDGPUThreadRange(m_threads)) {
     if (pred(thread))
       return &thread;
@@ -98,22 +99,21 @@ ProcessAMDGPU::FindThread(std::function<bool(ThreadAMDGPU &)> pred) {
   return nullptr;
 }
 
+static bool ThreadHasValidStopReason(ThreadAMDGPU &thread) {
+  ThreadStopInfo stop_info;
+  std::string stop_description;
+  thread.GetStopReason(stop_info, stop_description);
+
+  return stop_info.reason != lldb::eStopReasonInvalid
+    && stop_info.reason != lldb::eStopReasonNone;
+}
+
 // Select which thread should be considered the "current thread" in the process.
 lldb::tid_t ProcessAMDGPU::ChooseCurrentThread() {
-  // Helper to find the thread with the matching ID from GetCurrentThreadID.
-  // Note this thread may no longer exist in the threads vector if its
-  // owning wave has completed execution.
-  auto GetCurrentThread = [this]() {
-    const lldb::tid_t current_tid = GetCurrentThreadID();
-    return FindThread([current_tid](ThreadAMDGPU &thread) {
-      return current_tid == thread.GetID();
-    });
-  };
-
   // Helper to find the first thread with a valid stop reason.
   auto GetFirstThreadWithValidStopReason = [this]() {
     return FindThread([](ThreadAMDGPU &thread) {
-      return StateIsStoppedState(thread.GetState(), /*must_exist=*/true);
+      return ThreadHasValidStopReason(thread);
     });
   };
 
@@ -122,9 +122,8 @@ lldb::tid_t ProcessAMDGPU::ChooseCurrentThread() {
     return LLDB_INVALID_THREAD_ID;
 
   // If the current thread has a valid stop reason then use that thread.
-  ThreadAMDGPU *current_thread = GetCurrentThread();
-  if (current_thread &&
-      StateIsStoppedState(current_thread->GetState(), /*must_exist=*/true))
+  ThreadAMDGPU *current_thread = GetCurrentThreadAMDGPU();
+  if (current_thread && ThreadHasValidStopReason(*current_thread))
     return current_thread->GetID();
 
   // Otherwise, look for a thread with a valid stop reason.
