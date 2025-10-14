@@ -53,7 +53,7 @@ void WaveAMDGPU::AddThreadsToList(
 
 void WaveAMDGPU::SetDbgApiInfo(const DbgApiWaveInfo &wave_info) {
   m_wave_info = wave_info;
-  SetStopReasonFromWaveInfo();
+  UpdateStopReasonFromWaveInfo();
 }
 
 static lldb::StopReason
