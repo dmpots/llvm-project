@@ -449,8 +449,7 @@ bool LLDBServerPluginAMDGPU::ReadyToSetGpuLoaderBreakpointByAddress() {
 }
 
 GPUActions LLDBServerPluginAMDGPU::SetConnectionInfo() {
-  GPUActions actions;
-  actions.plugin_name = GetPluginName();
+  GPUActions actions = GetNewGPUAction();
   actions.connect_info = CreateConnection();
   return actions;
 }
@@ -460,8 +459,7 @@ GPUActions LLDBServerPluginAMDGPU::SetGpuLoaderBreakpointByAddress() {
   LLDB_LOGF(log, "%s Requesting gpu breakpoint at 0x%p", __FUNCTION__,
             (void *)m_gpu_internal_bp->addr);
   assert(!kSetDbgApiBreakpointByName);
-  GPUActions actions;
-  actions.plugin_name = GetPluginName();
+  GPUActions actions = GetNewGPUAction();
 
   GPUBreakpointByAddress bp_addr;
   bp_addr.load_address = m_gpu_internal_bp->addr;
@@ -709,8 +707,7 @@ void LLDBServerPluginAMDGPU::NativeProcessDidExit(const WaitStatus &exit_status)
 }
 
 GPUActions LLDBServerPluginAMDGPU::GetInitializeActions() {
-  GPUActions init_actions;
-  init_actions.plugin_name = GetPluginName();
+  GPUActions init_actions = GetNewGPUAction();
 
   if (kSetDbgApiBreakpointByName) {
     GPUBreakpointByName bp_name;
