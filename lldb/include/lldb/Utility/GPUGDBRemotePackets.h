@@ -177,13 +177,13 @@ llvm::json::Value toJSON(const GPUPluginConnectionInfo &data);
 ///-----------------------------------------------------------------------------
 struct GPUActions {
   GPUActions() = default;
-  GPUActions(llvm::StringRef _plugin_name) : 
-      plugin_name(_plugin_name) {}
-  GPUActions(llvm::StringRef _plugin_name, uint32_t _stop_id) :
-      plugin_name(_plugin_name),  stop_id(_stop_id) {}
+  GPUActions(llvm::StringRef plugin_name, uint32_t gpu_action_id)
+      : plugin_name(plugin_name), identifier(gpu_action_id) {}
 
   /// The name of the plugin.
   std::string plugin_name;
+  /// Unique identifier for every GPU action.
+  uint32_t identifier = 0;
   /// The stop ID in the process that this action is associated with. If the
   /// wait_for_gpu_process_to_stop is true, this stop ID will be used to wait
   /// for. If the wait_for_gpu_process_to_resume is set to true it will wait
@@ -284,8 +284,8 @@ llvm::json::Value toJSON(const GPUDynamicLoaderLibraryInfo &data);
 ///-----------------------------------------------------------------------------
 struct GPUPluginBreakpointHitResponse {
   GPUPluginBreakpointHitResponse() = default;
-  GPUPluginBreakpointHitResponse(llvm::StringRef plugin_name, uint32_t stop_id)
-      : actions(plugin_name, stop_id) {}
+  GPUPluginBreakpointHitResponse(GPUActions gpu_actions)
+      : actions(std::move(gpu_actions)) {}
 
   ///< Set to true if this berakpoint should be disabled.
   bool disable_bp = false;

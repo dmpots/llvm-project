@@ -154,8 +154,7 @@ std::optional<GPUActions> LLDBServerPluginMockGPU::NativeProcessIsStopping() {
   NativeProcessProtocol *native_process = m_native_process.GetCurrentProcess();
   // Show that we can return a valid GPUActions object from a stop event.
   if (native_process->GetStopID() == 3) {
-    GPUActions actions;
-    actions.plugin_name = GetPluginName();
+    GPUActions actions = GetNewGPUAction();
     GPUBreakpointInfo bp;
     bp.identifier = BreakpointIDThirdStop;
     bp.name_info = {"a.out", "gpu_third_stop"};
@@ -177,8 +176,7 @@ LLDBServerPluginMockGPU::BreakpointWasHit(GPUPluginBreakpointHitArgs &args) {
               bp_identifier, json_string.c_str());
   }
   NativeProcessProtocol *gpu_process = m_gdb_server->GetCurrentProcess();
-  GPUPluginBreakpointHitResponse response(GetPluginName(), 
-                                          gpu_process->GetStopID());
+  GPUPluginBreakpointHitResponse response(GetNewGPUAction());
   if (bp_identifier == BreakpointIDInitialize) {
     response.disable_bp = true;
     LLDB_LOGF(log, "LLDBServerPluginMockGPU::BreakpointWasHit(%u) disabling breakpoint", 
@@ -224,8 +222,7 @@ LLDBServerPluginMockGPU::BreakpointWasHit(GPUPluginBreakpointHitArgs &args) {
 }
 
 GPUActions LLDBServerPluginMockGPU::GetInitializeActions() {
-  GPUActions init_actions;
-  init_actions.plugin_name = GetPluginName();
+  GPUActions init_actions = GetNewGPUAction();
   {
     GPUBreakpointInfo bp;
     bp.identifier = BreakpointIDInitialize;
