@@ -104,17 +104,16 @@ static bool ThreadHasValidStopReason(ThreadAMDGPU &thread) {
   std::string stop_description;
   thread.GetStopReason(stop_info, stop_description);
 
-  return stop_info.reason != lldb::eStopReasonInvalid
-    && stop_info.reason != lldb::eStopReasonNone;
+  return stop_info.reason != lldb::eStopReasonInvalid &&
+         stop_info.reason != lldb::eStopReasonNone;
 }
 
 // Select which thread should be considered the "current thread" in the process.
 lldb::tid_t ProcessAMDGPU::ChooseCurrentThread() {
   // Helper to find the first thread with a valid stop reason.
   auto GetFirstThreadWithValidStopReason = [this]() {
-    return FindThread([](ThreadAMDGPU &thread) {
-      return ThreadHasValidStopReason(thread);
-    });
+    return FindThread(
+        [](ThreadAMDGPU &thread) { return ThreadHasValidStopReason(thread); });
   };
 
   // Return an invalid id when there are no threads.
