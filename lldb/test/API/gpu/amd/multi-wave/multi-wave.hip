@@ -48,7 +48,8 @@ __device__ void wait_for_all_threads() {
 
   // Wait until all blocks have reached this point.
   const unsigned int num_blocks = gridDim.x * gridDim.y * gridDim.z;
-  if (threadIdx.x == 0) {
+  const bool is_first_thread_in_block = (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0);
+  if (is_first_thread_in_block) {
     atomicAdd(&block_counter, 1);
     while (atomicAdd(&block_counter, 0) < num_blocks) {
     }

@@ -29,12 +29,14 @@ class BasicAmdGpuTestCase(AmdGpuTestCaseBase):
         """Test that we get the expected number of threads."""
         self.build()
 
-        self.run_to_breakpoint()
+        gpu_threads_at_breakpoint = self.run_to_breakpoint()
 
         # We launch 960 total threads (8 blocks * 120 threads per block).
+        gpu_threads = self.gpu_process.threads
+        self.assertEqual(len(gpu_threads), 960)
+
         # But not all waves may reach the breakpoint at the same time.
         # So here we check that we have at least one wave's worth of threads
         # stopped at the breakpoint. With wave size of 64, this means we should
         # have at least 56 threads (120 = 64 + 56) hitting the breakpoint.
-        gpu_threads = self.gpu_process.threads
-        self.assertGreaterEqual(len(gpu_threads), 56)
+        self.assertGreaterEqual(len(gpu_threads_at_breakpoint), 56)
