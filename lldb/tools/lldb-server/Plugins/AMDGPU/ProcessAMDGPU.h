@@ -118,6 +118,10 @@ public:
     return static_cast<ThreadAMDGPU *>(GetCurrentThread());
   }
 
+  void ForEachThread(
+      std::function<lldb_private::IterationAction(ThreadAMDGPU &)> const
+          &callback);
+
 private:
   WaveIdMap<std::shared_ptr<WaveAMDGPU>> m_waves;
   WaveIdList UpdateWaves();

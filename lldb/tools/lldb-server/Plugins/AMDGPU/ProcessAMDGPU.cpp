@@ -19,6 +19,7 @@
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/UnimplementedError.h"
 #include "lldb/lldb-defines.h"
+#include "lldb/lldb-private-enumerations.h"
 #include "lldb/lldb-types.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/BinaryFormat/ELF.h"
@@ -91,12 +92,25 @@ lldb::addr_t ProcessAMDGPU::GetSharedLibraryInfoAddress() {
 
 ThreadAMDGPU *
 ProcessAMDGPU::FindThread(std::function<bool(ThreadAMDGPU &)> pred) {
+  ThreadAMDGPU *found = nullptr;
+  ForEachThread([&found, &pred](ThreadAMDGPU &thread) {
+    if (pred(thread)) {
+      found = &thread;
+      return IterationAction::Stop;
+    }
+    return IterationAction::Continue;
+  });
+  return found;
+}
+
+void ProcessAMDGPU::ForEachThread(
+    std::function<lldb_private::IterationAction(ThreadAMDGPU &)> const
+        &callback) {
   std::lock_guard<std::recursive_mutex> guard(m_threads_mutex);
   for (ThreadAMDGPU &thread : AMDGPUThreadRange(m_threads)) {
-    if (pred(thread))
-      return &thread;
+    if (callback(thread) == IterationAction::Stop)
+      break;
   }
-  return nullptr;
 }
 
 static bool ThreadHasValidStopReason(ThreadAMDGPU &thread) {
@@ -112,8 +126,7 @@ static bool ThreadHasValidStopReason(ThreadAMDGPU &thread) {
 lldb::tid_t ProcessAMDGPU::ChooseCurrentThread() {
   // Helper to find the first thread with a valid stop reason.
   auto GetFirstThreadWithValidStopReason = [this]() {
-    return FindThread(
-        [](ThreadAMDGPU &thread) { return ThreadHasValidStopReason(thread); });
+    return FindThread(ThreadHasValidStopReason);
   };
 
   // Return an invalid id when there are no threads.
