@@ -675,10 +675,10 @@ WaveIdList ProcessAMDGPU::UpdateWaves() {
   for (auto it = m_waves.begin(); it != m_waves.end();) {
     if (live_waves.count(it->first)) {
       ++it;
-      continue;
+    } else {
+      LLDB_LOGF(log, "Removing dead wave: %" PRIu64, it->first.handle);
+      it = m_waves.erase(it);
     }
-    LLDB_LOGF(log, "Removing dead wave: %" PRIu64, it->first.handle);
-    it = m_waves.erase(it);
   }
 
   return new_waves;
