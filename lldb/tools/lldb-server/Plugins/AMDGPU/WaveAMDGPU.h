@@ -32,7 +32,6 @@ struct DbgApiWaveInfo {
   amd_dbgapi_dispatch_id_t dispatch_id = AMD_DBGAPI_DISPATCH_NONE;
   amd_dbgapi_queue_id_t queue_id = AMD_DBGAPI_QUEUE_NONE;
   amd_dbgapi_agent_id_t agent_id = AMD_DBGAPI_AGENT_NONE;
-  amd_dbgapi_process_id_t process_id = AMD_DBGAPI_PROCESS_NONE;
   amd_dbgapi_architecture_id_t architecture_id = AMD_DBGAPI_ARCHITECTURE_NONE;
   amd_dbgapi_global_address_t pc = 0;
   uint64_t exec_mask = 0;

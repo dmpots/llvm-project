@@ -552,10 +552,6 @@ ProcessAMDGPU::GetWaveInfo(amd_dbgapi_wave_id_t wave_id) {
                                       &wave_info.agent_id))
     return err;
 
-  if (llvm::Error err = QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_PROCESS,
-                                      &wave_info.process_id))
-    return err;
-
   if (llvm::Error err =
           QueryWaveInfo(wave_id, AMD_DBGAPI_WAVE_INFO_ARCHITECTURE,
                         &wave_info.architecture_id))
