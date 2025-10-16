@@ -17,3 +17,13 @@ using namespace lldb_private;
 NativeThreadProtocol::NativeThreadProtocol(NativeProcessProtocol &process,
                                            lldb::tid_t tid)
     : m_process(process), m_tid(tid) {}
+
+bool NativeThreadProtocol::HasValidStopReason() {
+  ThreadStopInfo stop_info;
+  std::string stop_description;
+  if (!GetStopReason(stop_info, stop_description))
+    return false;
+
+  return stop_info.reason != lldb::eStopReasonInvalid &&
+         stop_info.reason != lldb::eStopReasonNone;
+}

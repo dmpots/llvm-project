@@ -56,6 +56,8 @@ public:
     return llvm::make_error<UnimplementedError>();
   }
 
+  bool HasValidStopReason();
+
 protected:
   NativeProcessProtocol &m_process;
   lldb::tid_t m_tid;
