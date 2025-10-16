@@ -502,7 +502,7 @@ void ProcessAMDGPU::UpdateThreadListFromWaves() {
                        if (thread.IsShadowThread())
                          return true;
 
-                       return m_waves.find(thread.GetWaveID()) == m_waves.end();
+                       return m_waves.count(thread.GetWaveID()) == 0;
                      }),
       m_threads.end());
 
