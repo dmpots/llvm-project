@@ -419,9 +419,9 @@ Status LLDBServerPluginAMDGPU::CreateGpuProcess() {
   m_gdb_server->SetLaunchInfo(info);
 
   Status status = m_gdb_server->LaunchProcess();
-  if (status.Success()) {
+  if (status.Success())
     GetGPUProcess()->UpdateThreads();
-  }
+
   return status;
 }
 
