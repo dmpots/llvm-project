@@ -492,7 +492,7 @@ bool ProcessAMDGPU::handleDebugEvent(amd_dbgapi_event_id_t eventId,
 }
 
 void ProcessAMDGPU::UpdateThreadListFromWaves() {
-  std::vector<amd_dbgapi_wave_id_t> new_waves = UpdateWaves();
+  std::vector<amd_dbgapi_wave_id_t> new_waves = UpdateWavesAndReturnNew();
 
   // Remove dead threads.
   m_threads.erase(
@@ -623,7 +623,7 @@ ProcessAMDGPU::GetWaveList(size_t *count, amd_dbgapi_changed_t *changed) {
   return DbgApiClientMemoryPtr<amd_dbgapi_wave_id_t>(wave_list);
 }
 
-WaveIdList ProcessAMDGPU::UpdateWaves() {
+WaveIdList ProcessAMDGPU::UpdateWavesAndReturnNew() {
   Log *log = GetLog(GDBRLog::Plugin);
 
   // Get the list of waves
