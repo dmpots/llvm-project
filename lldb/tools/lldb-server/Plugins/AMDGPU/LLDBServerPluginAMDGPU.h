@@ -56,7 +56,6 @@ public:
                          MainLoop &main_loop);
   ~LLDBServerPluginAMDGPU() override;
   llvm::StringRef GetPluginName() override;
-  bool HandleEventFileDescriptorEvent(int fd) override;
   GPUActions GetInitializeActions() override;
   std::optional<struct GPUActions> NativeProcessIsStopping() override;
   void NativeProcessDidExit(const WaitStatus &exit_status) override;
@@ -109,7 +108,7 @@ private:
   AmdDbgApiEventSet
   process_event_queue(amd_dbgapi_event_kind_t until_event_kind,
                       EventBoundaryType boundary_type = ProcessEventInclusive);
-  bool processGPUEvent();
+  void HandleNotifierDataReady();
   bool SetGPUBreakpoint(uint64_t addr, const uint8_t *bp_instruction,
                         size_t size);
   bool ReadyToAttachDebugLibrary();
