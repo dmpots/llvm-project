@@ -293,7 +293,7 @@ Status LLDBServerPluginAMDGPU::DetachAmdDbgApi() {
 
 void LLDBServerPluginAMDGPU::HandleNotifierDataReady() {
   Log *log = GetLog(GDBRLog::Plugin);
-  LLDB_LOGF(log, "{}: m_notifier_fd data is ready", __FUNCTION__);
+  LLDB_LOG(log, "{}: m_notifier_fd data is ready", __FUNCTION__);
   char buf[256];
   ssize_t bytesRead = 0;
 
@@ -306,9 +306,8 @@ void LLDBServerPluginAMDGPU::HandleNotifierDataReady() {
 
   // Log the error if the notifier read failed, but we can still try to process
   // the events.
-  if (bytesRead == -1) {
+  if (bytesRead == -1)
     LLDB_LOG(log, "Notifier descriptor read failed: {}", strerror(errno));
-  }
 
   if (llvm::Error err = RunAmdDbgApiCommand([this]() {
         return amd_dbgapi_process_set_progress(m_gpu_pid,
