@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "LLDBServerPluginAMDGPU.h"
+#include "AmdDbgApiHelpers.h"
 #include "Plugins/Process/gdb-remote/GDBRemoteCommunicationServerLLGS.h"
 #include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
 #include "ProcessAMDGPU.h"
@@ -290,36 +291,44 @@ Status LLDBServerPluginAMDGPU::DetachAmdDbgApi() {
   return Status();
 }
 
-bool LLDBServerPluginAMDGPU::processGPUEvent() {
-  LLDB_LOGF(GetLog(GDBRLog::Plugin), "processGPUEvent");
+void LLDBServerPluginAMDGPU::HandleNotifierDataReady() {
+  Log *log = GetLog(GDBRLog::Plugin);
+  LLDB_LOG(log, "{}: m_notifier_fd data is ready", __FUNCTION__);
   char buf[256];
   ssize_t bytesRead = 0;
-  bool result = false;
+
+  // Read the data from the notifier fd. The data is just used to signal
+  // that there is an event to process and does not have any meaning.
+  // The actual event is processed in the call to process_event_queue below.
   do {
-    do {
-      bytesRead = read(m_notifier_fd, buf, sizeof(buf));
-    } while (bytesRead <= 0);
+    bytesRead = read(m_notifier_fd, buf, sizeof(buf));
+  } while (bytesRead == -1 && errno == EINTR);
 
+  // Log the error if the notifier read failed, but we can still try to process
+  // the events.
+  if (bytesRead == -1)
+    LLDB_LOG(log, "Notifier descriptor read failed: {}", strerror(errno));
+
+  if (llvm::Error err = RunAmdDbgApiCommand([this]() {
+        return amd_dbgapi_process_set_progress(m_gpu_pid,
+                                               AMD_DBGAPI_PROGRESS_NO_FORWARD);
+      }))
+    LLDB_LOG_ERROR(log, std::move(err),
+                   "Failed to disable forward progress: {0}");
+
+  AmdDbgApiEventSet events = process_event_queue(AMD_DBGAPI_EVENT_KIND_NONE);
+  if (events.HasWaveStopEvent()) {
     auto *process = GetGPUProcess();
-    amd_dbgapi_status_t status = amd_dbgapi_process_set_progress(
-        m_gpu_pid, AMD_DBGAPI_PROGRESS_NO_FORWARD);
-    assert(status == AMD_DBGAPI_STATUS_SUCCESS);
-    AmdDbgApiEventSet events = process_event_queue(AMD_DBGAPI_EVENT_KIND_NONE);
-    if (events.HasWaveStopEvent()) {
-      process->UpdateThreads();
-      process->Halt();
-    }
+    process->UpdateThreads();
+    process->Halt();
+  }
 
-    status =
-        amd_dbgapi_process_set_progress(m_gpu_pid, AMD_DBGAPI_PROGRESS_NORMAL);
-    assert(status == AMD_DBGAPI_STATUS_SUCCESS);
-    break;
-  } while (true);
-  return result;
-}
-
-bool LLDBServerPluginAMDGPU::HandleEventFileDescriptorEvent(int fd) {
-  return processGPUEvent();
+  if (llvm::Error err = RunAmdDbgApiCommand([this]() {
+        return amd_dbgapi_process_set_progress(m_gpu_pid,
+                                               AMD_DBGAPI_PROGRESS_NORMAL);
+      }))
+    LLDB_LOG_ERROR(log, std::move(err),
+                   "Failed to enable forward progress: {0}");
 }
 
 std::optional<GPUPluginConnectionInfo>
@@ -391,8 +400,7 @@ Status LLDBServerPluginAMDGPU::InstallAmdDbgApiNotifierOnMainLoop() {
   m_gpu_event_read_up = m_main_loop.RegisterReadObject(
       m_gpu_event_io_obj_sp,
       [amdGPUPlugin](MainLoopBase &) {
-        amdGPUPlugin->HandleEventFileDescriptorEvent(
-            amdGPUPlugin->m_notifier_fd);
+        amdGPUPlugin->HandleNotifierDataReady();
       },
       error);
   return error;
