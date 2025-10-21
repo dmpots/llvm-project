@@ -74,6 +74,31 @@ class BasicAmdGpuTestCase(AmdGpuTestCaseBase):
         # All threads should be stopped at the breakpoint.
         self.assertEqual(len(gpu_threads_at_bp), num_expected_threads)
 
+    def test_num_threads_divergent_breakpoint(self):
+        """Test that we get the expected number of threads in a divergent breakpoint."""
+        self.build()
+
+        # GPU breakpoint should get hit by at least one thread.
+        source = "hello_world.hip"
+        gpu_threads_at_bp = self.run_to_gpu_breakpoint(
+            source, "// DIVERGENT BREAKPOINT", "// CPU BREAKPOINT - BEFORE LAUNCH"
+        )
+        self.assertNotEqual(
+            None, gpu_threads_at_bp, "GPU should be stopped at breakpoint"
+        )
+
+        # We launch one thread for each character in the output string.
+        # So all threads should be present in the process.
+        gpu_threads = self.gpu_process.threads
+        total_num_threads = len("Hello, world!")
+        self.assertEqual(len(gpu_threads), total_num_threads)
+
+        # Since all the threads are in the same wave, they all share the same pc
+        # and should be stopped at the same breakpoint. At some point, we need to
+        # represent active/inactive threads in lldb, but that support does not yet
+        # exist.
+        self.assertEqual(len(gpu_threads_at_bp), total_num_threads)
+
     def test_no_unexpected_stop(self):
         """Test that we do not unexpectedly hit a stop in the debugger when
         No breakpoints are set."""
