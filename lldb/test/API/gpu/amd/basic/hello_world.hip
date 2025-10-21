@@ -62,7 +62,7 @@ __global__ void helloworld_kernel(char *str, size_t size) {
     case  4: c = 'o'; break;
     case  5: c = ','; break;
     case  6: c = ' '; break;
-    case  7: c = 'w'; break;
+    case  7: c = 'w'; break; // DIVERGENT BREAKPOINT
     case  8: c = 'o'; break;
     case  9: c = 'r'; break;
     case 10: c = 'l'; break;
