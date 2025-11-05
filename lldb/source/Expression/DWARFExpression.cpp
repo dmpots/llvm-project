@@ -2019,8 +2019,9 @@ llvm::Expected<Value> DWARFExpression::Evaluate(
         return llvm::createStringError(
             "expression stack needs at least 1 item for DW_OP_bit_piece");
       } else {
-        UpdateValueTypeFromLocationDescription(
-            log, dwarf_cu, dwarf4_location_description_kind, &stack.back());
+        UpdateValueTypeFromLocationDescription(log, dwarf_cu,
+                                               dwarf4_location_description_kind,
+                                               &stack.back().GetAsValue());
         // Reset for the next piece.
         dwarf4_location_description_kind = Memory;
         const uint64_t piece_bit_size = opcodes.GetULEB128(&offset);
@@ -2320,8 +2321,9 @@ llvm::Expected<Value> DWARFExpression::Evaluate(
     return llvm::createStringError("stack empty after evaluation");
   }
 
-  UpdateValueTypeFromLocationDescription(
-      log, dwarf_cu, dwarf4_location_description_kind, &stack.back());
+  UpdateValueTypeFromLocationDescription(log, dwarf_cu,
+                                         dwarf4_location_description_kind,
+                                         &stack.back().GetAsValue());
 
   if (log && log->GetVerbose()) {
     size_t count = stack.size();

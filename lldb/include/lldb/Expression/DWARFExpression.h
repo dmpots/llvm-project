@@ -12,6 +12,7 @@
 #include "lldb/Core/Address.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/dwarf.h"
+#include "lldb/Expression/DWARF6.h"
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/Scalar.h"
 #include "lldb/Utility/Status.h"
@@ -35,7 +36,7 @@ namespace lldb_private {
 /// location expression or a location list and interprets it.
 class DWARFExpression {
 public:
-  using Stack = std::vector<Value>;
+  using Stack = std::vector<DWARFExpressionStackElement>;
 
   class Delegate {
   public:
