@@ -168,7 +168,7 @@ public:
                                       lldb::offset_t &offset,
                                       RegisterContext *reg_ctx,
                                       lldb::RegisterKind reg_kind,
-                                      std::vector<Value> &stack) const override;
+                                      DWARFExpression::Stack &stack) const override;
 
   bool ParseDWARFLocationList(const DataExtractor &data,
                               DWARFExpressionList &loc_list) const;

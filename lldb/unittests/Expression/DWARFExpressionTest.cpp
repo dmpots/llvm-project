@@ -723,7 +723,7 @@ public:
       lldb::offset_t &offset,
 
       RegisterContext *reg_ctx, lldb::RegisterKind reg_kind,
-      std::vector<lldb_private::Value> &stack) const override {
+      DWARFExpression::Stack &stack) const override {
     if (op != DW_OP_WASM_location) {
       return false;
     }
