@@ -151,6 +151,8 @@ LLDBServerPluginAMDGPU::LLDBServerPluginAMDGPU(
   m_gdb_server.reset(new GDBRemoteCommunicationServerLLGS(
       m_main_loop, *m_process_manager_up, "amd-gpu.server"));
 
+  m_gdb_server->SetPlugin(this);
+
   Status error = InitializeAmdDbgApi();
   if (error.Fail()) {
     logAndReportFatalError("{} Failed to initialize debug library: {}",

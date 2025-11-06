@@ -110,10 +110,55 @@ bool fromJSON(const llvm::json::Value &value, GPUPluginBreakpointHitArgs &data,
 llvm::json::Value toJSON(const GPUPluginBreakpointHitArgs &data);
 
 ///-----------------------------------------------------------------------------
+/// LLDBSettings
+///
+/// A structure that contains settings that the a process being debugged over
+/// the GDB remote protocol can return to LLDB to configure the LLDB process and
+/// its plug-ins.
+///-----------------------------------------------------------------------------
+struct LLDBSettings {
+  /// The name of the DynamicLoader plug-in to use. If specified, the LLDB
+  /// process process will use the DynamicLoader plug-in by name. This allows
+  /// custom dynamic loader plug-ins to be compiled into LLDB and used. If not
+  /// specified, the dynamic loader plugin will be auto selected by the target
+  /// triple of the process.
+  std::string dyld_plugin_name;
+
+  /// GPU specific settings.
+  
+  /// If this is a GPU plug-in, the name of the GPU plug-in. These settings
+  /// might request that we send the "jGPUPluginGetDynamicLoaderLibraryInfo"
+  /// packet to the GPU GDB remote connection, or to the CPU GDB remote
+  /// connection. If we sent the packet to the CPU GDB remote connection, then
+  /// we need to know which GPU plug-in to send the packet to and we use the
+  /// GPU plug-in name for this.
+  std::string gpu_plugin_name;
+  /// This boolean value allows the "jGPUPluginGetDynamicLoaderLibraryInfo"
+  /// packet to be sent to either the GPU GDB remote connection if true, or it
+  /// can be sent via the native process' GDB server if false. Some GPU
+  /// solutions might use an separate binary to provide the GDB remote
+  /// connection that might not have access to the native process connection
+  /// which might be required to fetch the loaded libraries.
+  ///
+  /// If this is true, the GPU plug-in will be asked to return the loaded
+  /// libraries in via NativeProcessProtocol::GetGPUDynamicLoaderLibraryInfos().
+  /// If this is false, then the CPU connection will receive the packet and
+  /// forward it to the GPU plug-in via a call to the
+  /// LLDBServerPlugin::GetGPUDynamicLoaderLibraryInfos().
+  bool send_dyld_packet_to_gpu = true;
+};
+
+bool fromJSON(const llvm::json::Value &value, LLDBSettings &data,
+              llvm::json::Path path);
+
+llvm::json::Value toJSON(const LLDBSettings &data);
+
+
+///-----------------------------------------------------------------------------
 /// GPUPluginConnectionInfo
 ///
 /// A structure that contains all of the information needed for LLDB to create
-/// a reverse connection to a GPU GDB server
+/// a reverse connection to a GPU GDB server.
 ///-----------------------------------------------------------------------------
 struct GPUPluginConnectionInfo {
   /// A target executable path to use when creating the target.
@@ -299,6 +344,11 @@ bool fromJSON(const llvm::json::Value &value,
 llvm::json::Value toJSON(const GPUPluginBreakpointHitResponse &data);
 
 struct GPUDynamicLoaderArgs {
+  /// The name of the GPU plug-in to retrieve shared library information from.
+  /// This is needed if we send the library request to the CPU GDB remote
+  /// connection so it can find the right GPU plug-in to send the request to
+  /// since the native process can have more than one GPU plug-in installed.
+  std::string plugin_name;
   /// Set to true to get all shared library information. Set to false to get
   /// only the libraries that were updated since the last call to
   /// the "jGPUPluginGetDynamicLoaderLibraryInfo" packet.

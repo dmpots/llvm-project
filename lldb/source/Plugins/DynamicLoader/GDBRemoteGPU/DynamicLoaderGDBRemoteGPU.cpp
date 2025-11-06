@@ -61,13 +61,39 @@ bool DynamicLoaderGDBRemoteGPU::HandleStopReasonDynamicLoader() {
 bool DynamicLoaderGDBRemoteGPU::LoadModulesFromGDBServer(bool full) {
   Log *log = GetLog(LLDBLog::DynamicLoader);
 
-  ProcessGDBRemote *gdb_process = static_cast<ProcessGDBRemote *>(m_process);
-  ModuleList loaded_module_list;
+  TargetSP cpu_target_sp = m_process->GetTarget().GetNativeTargetForGPU();
+  ProcessSP cpu_process_sp;
+  if (cpu_target_sp)
+    cpu_process_sp = cpu_target_sp->GetProcessSP();
+  
+  ProcessGDBRemote *gpu_process = static_cast<ProcessGDBRemote *>(m_process);
+  /// The GDB remote connection that we will to send the shared library request
+  /// to.
+  ProcessGDBRemote *send_process = gpu_process;
   GPUDynamicLoaderArgs args;
   args.full = full;
+
+  // Read the LLDB settings to see where the GPU plug-in wants the request sent
+  // to. This will either go to the GPU GDB connection and ask the 
+  // NativeProcessProtocol, or to the CPU GDB connection which will then ask the
+  // LLDBServerPlugin.
+  std::optional<LLDBSettings> process_settings =
+      gpu_process->GetGDBRemote().GetLLDBSettings();
+  if (process_settings && !process_settings->send_dyld_packet_to_gpu) {
+    // We need to send the GPU dyld packet through the CPU GDB remote
+    // connection.
+    send_process = static_cast<ProcessGDBRemote *>(cpu_process_sp.get());
+    // Fill in the GPU plug-in name so the CPU GDB connection can send the
+    // shared library request to the right GPU plug-in.
+    args.plugin_name = process_settings->gpu_plugin_name;
+  }
+
+  ModuleList loaded_module_list;
   Target &target = m_process->GetTarget();
+  if (send_process == nullptr)
+    return false;
   std::optional<GPUDynamicLoaderResponse> response =
-      gdb_process->GetGDBRemote().GetGPUDynamicLoaderLibraryInfos(args);
+      send_process->GetGDBRemote().GetGPUDynamicLoaderLibraryInfos(args);
   if (!response) {
     LLDB_LOG(log, "Failed to get dynamic loading info from GDB server");
     return false;
@@ -78,9 +104,7 @@ bool DynamicLoaderGDBRemoteGPU::LoadModulesFromGDBServer(bool full) {
     if (info.native_memory_address && info.native_memory_size) {
       LLDB_LOG(log, "Reading \"{0}\" from memory at {1:x}", info.pathname,
                *info.native_memory_address);
-      TargetSP cpu_target_sp = m_process->GetTarget().GetNativeTargetForGPU();
       if (cpu_target_sp) {
-        ProcessSP cpu_process_sp = cpu_target_sp->GetProcessSP();
         if (cpu_process_sp) {
           data_sp =
               std::make_shared<DataBufferHeap>(*info.native_memory_size, 0);

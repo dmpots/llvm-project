@@ -30,7 +30,8 @@ class ProcessAMDGPU : public NativeProcessProtocol {
   ProcessInstanceInfo m_process_info;
 
 public:
-  ProcessAMDGPU(lldb::pid_t pid, NativeDelegate &delegate, LLDBServerPluginAMDGPU *plugin);
+  ProcessAMDGPU(lldb::pid_t pid, NativeDelegate &delegate, 
+                LLDBServerPluginAMDGPU *plugin);
 
   Status Resume(const ResumeActionList &resume_actions) override;
 
@@ -147,14 +148,14 @@ public:
          NativeProcessProtocol::NativeDelegate &native_delegate) override;
 
   NativeProcessProtocol::Extension GetSupportedExtensions() const override {
-    return NativeProcessProtocol::Extension::gpu_dyld;
+    return NativeProcessProtocol::Extension::lldb_settings;
   }
 
   llvm::Expected<std::unique_ptr<NativeProcessProtocol>>
   Attach(lldb::pid_t pid,
          NativeProcessProtocol::NativeDelegate &native_delegate) override;
-  
-  LLDBServerPluginAMDGPU* m_debugger = nullptr;
+
+    LLDBServerPluginAMDGPU* m_debugger = nullptr;
 };
 
 } // namespace lldb_server

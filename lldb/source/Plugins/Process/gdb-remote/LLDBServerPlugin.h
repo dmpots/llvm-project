@@ -142,6 +142,46 @@ public:
   virtual llvm::Expected<GPUPluginBreakpointHitResponse>
   BreakpointWasHit(GPUPluginBreakpointHitArgs &args) = 0;
 
+  /// Get the GPU dynamic libraries from the GPU plug-in.
+  ///
+  /// If a GPU plug-in decides to launch a stand alone GDB server binary that
+  /// can debug the GPU, it might not have the ability to communicate with the
+  /// native process. In this case the plug-in can return LLDBSettings that tell
+  /// LLDB to use a different dynamic loader that is built into LLDB, or it can
+  /// tell LLDB to send the request to through the CPU GDB remote connection
+  /// which can then call this GPU plug-in function. This is done by setting the 
+  /// LLDBSettings::send_dyld_packet_to_gpu to false in GetLLDBSettings(). 
+  /// Then this function can access the native CPU connection to figure out
+  /// what shared libraries are to load/unlooad. This allows flexibility for
+  /// GPU plug-ins and how they load the shared libraries.
+  virtual std::optional<GPUDynamicLoaderResponse> 
+  GetGPUDynamicLoaderLibraryInfos(const GPUDynamicLoaderArgs &args) {
+    return std::nullopt;
+  }
+
+  /// Get any custom LLDB settings needed to debug this LLDBServerPlugin.
+  ///
+  /// Clients can currently customize the LLDB dynamic loader plug-in name
+  /// if they want to use a custom dynamic loader plug-in, or they can specify
+  /// the "gdb-remote-gpu" to use the DynamicLoaderGDBRemoteGPU plug-in in
+  /// the LLDB client. Using the DynamicLoaderGDBRemoteGPU will cause it to
+  /// call the LLDBServerPlugin::GetGPUDynamicLoaderLibraryInfos() or
+  /// NativeProcessProtocol::GetGPUDynamicLoaderLibraryInfos() to fetch shared
+  /// libraries. Which one gets call depends on the value of the
+  /// LLDBSettings::send_dyld_packet_to_gpu boolean value. If this is set to
+  /// true, then NativeProcessProtocol::GetGPUDynamicLoaderLibraryInfos() will
+  /// be called. If set to false, then the LLDB server plugin will have its
+  /// LLDBServerPlugin::GetGPUDynamicLoaderLibraryInfos() method called. This is
+  /// handy when the GPU GDB server isn't able to figure out shared libraries
+  /// on its own and requires being able to introspect the native process. 
+  virtual std::optional<LLDBSettings> GetLLDBSettings() {
+    LLDBSettings settings;
+    settings.gpu_plugin_name = GetPluginName();
+    settings.dyld_plugin_name = "gdb-remote-gpu";
+    settings.send_dyld_packet_to_gpu = true;
+    return settings;
+  }
+
 protected:
   std::mutex m_connect_mutex;
 };

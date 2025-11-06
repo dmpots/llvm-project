@@ -111,6 +111,10 @@ public:
   }
   void InstallPlugin(std::unique_ptr<lldb_server::LLDBServerPlugin> plugin_up);
 
+  void SetPlugin(lldb_server::LLDBServerPlugin *plugin) {
+    m_plugin_instance = plugin;
+  }
+
   struct DebuggedProcess {
     enum class Flag {
       vkilled = (1u << 0),
@@ -153,7 +157,13 @@ protected:
 
   NativeProcessProtocol::Extension m_extensions_supported = {};
 
+  /// If this GDB server has LLDBServerPlugins, then this will list all 
+  /// installed LLDBServerPlugin instances.
   std::vector<std::unique_ptr<lldb_server::LLDBServerPlugin>> m_plugins;
+
+  /// If this GDB server is a LLDBServerPlugin, then this will point to the 
+  /// LLDBServerPlugin instance.
+  lldb_server::LLDBServerPlugin *m_plugin_instance = nullptr;
 
   // Typically we would use a SmallVector for this data but in this context we
   // don't know how much data we're recieving so we would have to heap allocate
@@ -314,6 +324,8 @@ protected:
 
   PacketResult Handle_jGPUPluginGetDynamicLoaderLibraryInfo(
       StringExtractorGDBRemote &packet);
+
+  PacketResult Handle_jLLDBSettings(StringExtractorGDBRemote &packet);
 
   void SetCurrentThreadID(lldb::tid_t tid);
 

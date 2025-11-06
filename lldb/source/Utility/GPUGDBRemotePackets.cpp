@@ -82,6 +82,29 @@ llvm::json::Value toJSON(const GPUBreakpointInfo &data) {
   });
 }
 
+
+//------------------------------------------------------------------------------
+// LLDBSettings
+//------------------------------------------------------------------------------
+bool fromJSON(const llvm::json::Value &value, LLDBSettings &data,
+              llvm::json::Path path) {
+  ObjectMapper o(value, path);
+  return o && 
+         o.map("dyld_plugin_name", data.dyld_plugin_name) &&
+         o.map("gpu_plugin_name", data.gpu_plugin_name) && 
+         o.map("send_dyld_packet_to_gpu",
+               data.send_dyld_packet_to_gpu);
+}
+
+llvm::json::Value toJSON(const LLDBSettings &data) {
+  return json::Value(Object{
+      {"dyld_plugin_name", data.dyld_plugin_name},
+      {"gpu_plugin_name", data.gpu_plugin_name},
+      {"send_dyld_packet_to_gpu",
+       data.send_dyld_packet_to_gpu},
+  });
+}
+
 //------------------------------------------------------------------------------
 // GPUPluginConnectionInfo
 //------------------------------------------------------------------------------
@@ -250,11 +273,16 @@ llvm::json::Value toJSON(const GPUDynamicLoaderLibraryInfo &data) {
 bool fromJSON(const llvm::json::Value &value, GPUDynamicLoaderArgs &data,
               llvm::json::Path path) {
   ObjectMapper o(value, path);
-  return o && o.map("full", data.full);
+  return o && 
+         o.map("plugin_name", data.plugin_name) && 
+         o.map("full", data.full);
 }
 
 llvm::json::Value toJSON(const GPUDynamicLoaderArgs &data) {
-  return json::Value(Object{{"full", data.full}});
+  return json::Value(Object{
+    {"plugin_name", data.plugin_name},
+    {"full", data.full}
+  });
 }
 
 //------------------------------------------------------------------------------

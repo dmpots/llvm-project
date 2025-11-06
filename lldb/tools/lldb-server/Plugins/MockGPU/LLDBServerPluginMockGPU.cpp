@@ -39,6 +39,8 @@ LLDBServerPluginMockGPU::LLDBServerPluginMockGPU(
   m_process_manager_up.reset(new ProcessMockGPU::Manager(m_main_loop));
   m_gdb_server.reset(new GDBRemoteCommunicationServerLLGS(
       m_main_loop, *m_process_manager_up, "mock-gpu.server"));
+  
+  m_gdb_server->SetPlugin(this);
 
   Log *log = GetLog(GDBRLog::Plugin);
   LLDB_LOGF(log, "LLDBServerPluginMockGPU::LLDBServerPluginMockGPU() faking launch...");
@@ -177,12 +179,16 @@ std::optional<GPUActions> LLDBServerPluginMockGPU::NativeProcessIsStopping() {
   return std::nullopt;
 }
 
+ProcessMockGPU *LLDBServerPluginMockGPU::GetGPUProcess() const {
+  NativeProcessProtocol *process = m_gdb_server->GetCurrentProcess();
+  return static_cast<ProcessMockGPU *>(process);
+}
+
 void LLDBServerPluginMockGPU::NativeProcessDidExit(
     const WaitStatus &exit_status) {
   // Tell the GPU process to exit
-  NativeProcessProtocol *gpu_process = m_gdb_server->GetCurrentProcess();
-  if (auto *mock_gpu_process = static_cast<ProcessMockGPU *>(gpu_process))
-    mock_gpu_process->HandleNativeProcessExit(exit_status);
+  if (auto *process = GetGPUProcess())
+    process->HandleNativeProcessExit(exit_status);
 }
 
 llvm::Expected<GPUPluginBreakpointHitResponse>
@@ -264,4 +270,16 @@ GPUActions LLDBServerPluginMockGPU::GetInitializeActions() {
     init_actions.breakpoints.emplace_back(std::move(bp));
   }
   return init_actions;
+}
+
+/// This function is here to allow us to test if the shared libraries can be
+/// fetched over the CPU GDB remote connection. It just forwards to our 
+/// ProcessMockGPU.
+std::optional<GPUDynamicLoaderResponse> 
+LLDBServerPluginMockGPU::GetGPUDynamicLoaderLibraryInfos(
+    const GPUDynamicLoaderArgs &args) {
+  ProcessMockGPU *mock_process = GetGPUProcess();
+  if (!mock_process)
+    return std::nullopt;
+  return mock_process->GetGPUDynamicLoaderLibraryInfos(args);
 }
