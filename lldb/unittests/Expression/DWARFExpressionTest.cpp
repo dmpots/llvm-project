@@ -24,6 +24,7 @@
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/StreamString.h"
+#include "lldb/lldb-forward.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Testing/Support/Error.h"
 #include "gtest/gtest.h"
@@ -34,6 +35,35 @@ using namespace lldb_private;
 using namespace llvm::dwarf;
 
 namespace {
+// NB: This class doesn't use the override keyword to avoid
+// -Winconsistent-missing-override warnings from the compiler. The
+// inconsistency comes from the overriding definitions in the MOCK_*** macros.
+class MockTarget : public Target {
+public:
+  MockTarget(Debugger &debugger, const ArchSpec &target_arch,
+             const lldb::PlatformSP &platform_sp)
+      : Target(debugger, target_arch, platform_sp, true) {}
+
+  MOCK_METHOD2(ReadMemory,
+               llvm::Expected<std::vector<uint8_t>>(lldb::addr_t addr,
+                                                    size_t size));
+
+  size_t ReadMemory(const Address &addr, void *dst, size_t dst_len,
+                    Status &error, bool force_live_memory = false,
+                    lldb::addr_t *load_addr_ptr = nullptr,
+                    bool *did_read_live_memory = nullptr) /*override*/ {
+    auto expected_memory = this->ReadMemory(addr.GetOffset(), dst_len);
+    if (!expected_memory) {
+      llvm::consumeError(expected_memory.takeError());
+      return 0;
+    }
+    const size_t bytes_read = expected_memory->size();
+    assert(bytes_read <= dst_len);
+    std::memcpy(dst, expected_memory->data(), bytes_read);
+    return bytes_read;
+  }
+};
+
 struct MockProcess : Process {
   MockProcess(lldb::TargetSP target_sp, lldb::ListenerSP listener_sp)
       : Process(target_sp, listener_sp) {}
@@ -53,10 +83,16 @@ struct MockProcess : Process {
     return false;
   };
 
+  MOCK_METHOD1(MemoryContents, std::vector<uint8_t>(lldb::addr_t addr));
+
   size_t DoReadMemory(lldb::addr_t vm_addr, void *buf, size_t size,
                       Status &error) override {
-    for (size_t i = 0; i < size; ++i)
-      ((char *)buf)[i] = (vm_addr + i) & 0xff;
+    auto mocked_bytes = MemoryContents(vm_addr);
+    for (size_t i = 0, e = std::min(size, mocked_bytes.size()); i < e; ++i)
+      ((uint8_t *)buf)[i] = mocked_bytes[i];
+
+    for (size_t i = mocked_bytes.size(); i < size; ++i)
+      ((uint8_t *)buf)[i] = (vm_addr + i) & 0xff;
     error.Clear();
     return size;
   }
@@ -197,35 +233,39 @@ public:
     HostInfo::Terminate();
     FileSystem::Terminate();
   }
-};
 
-// NB: This class doesn't use the override keyword to avoid
-// -Winconsistent-missing-override warnings from the compiler. The
-// inconsistency comes from the overriding definitions in the MOCK_*** macros.
-class MockTarget : public Target {
-public:
-  MockTarget(Debugger &debugger, const ArchSpec &target_arch,
-             const lldb::PlatformSP &platform_sp)
-      : Target(debugger, target_arch, platform_sp, true) {}
+  bool CreateMockObjects() {
+    ArchSpec arch("i386-pc-linux");
+    Platform::SetHostPlatform(
+        platform_linux::PlatformLinux::CreateInstance(true, &arch));
+    lldb::DebuggerSP debugger_sp = Debugger::CreateInstance();
+    EXPECT_TRUE(debugger_sp);
+    if (!debugger_sp)
+      return false;
 
-  MOCK_METHOD2(ReadMemory,
-               llvm::Expected<std::vector<uint8_t>>(lldb::addr_t addr,
-                                                    size_t size));
+    lldb::PlatformSP platform_sp = Platform::GetHostPlatform();
+    m_target_sp = std::make_shared<MockTarget>(*debugger_sp, arch, platform_sp);
+    EXPECT_TRUE(m_target_sp);
+    EXPECT_TRUE(m_target_sp->GetArchitecture().IsValid());
+    if (!m_target_sp)
+      return false;
 
-  size_t ReadMemory(const Address &addr, void *dst, size_t dst_len,
-                    Status &error, bool force_live_memory = false,
-                    lldb::addr_t *load_addr_ptr = nullptr,
-                    bool *did_read_live_memory = nullptr) /*override*/ {
-    auto expected_memory = this->ReadMemory(addr.GetOffset(), dst_len);
-    if (!expected_memory) {
-      llvm::consumeError(expected_memory.takeError());
-      return 0;
-    }
-    const size_t bytes_read = expected_memory->size();
-    assert(bytes_read <= dst_len);
-    std::memcpy(dst, expected_memory->data(), bytes_read);
-    return bytes_read;
+    lldb::ListenerSP listener_sp(Listener::MakeListener("dummy"));
+    m_process_sp = std::make_shared<MockProcess>(m_target_sp, listener_sp);
+    EXPECT_TRUE(m_process_sp);
+    if (!m_process_sp)
+      return false;
+
+    m_thread_sp = std::make_shared<MockThread>(*m_process_sp);
+    EXPECT_TRUE(m_thread_sp);
+    if (!m_thread_sp)
+      return false;
+
+    return true;
   }
+  std::shared_ptr<MockTarget> m_target_sp;
+  std::shared_ptr<MockProcess> m_process_sp;
+  std::shared_ptr<MockThread> m_thread_sp;
 };
 
 TEST(DWARFExpression, DW_OP_pick) {
@@ -537,6 +577,27 @@ TEST_F(DWARFExpressionMockProcessTest, DW_OP_deref) {
   EXPECT_THAT_EXPECTED(
       Evaluate({DW_OP_lit4, DW_OP_deref, DW_OP_stack_value}, {}, {}, &exe_ctx),
       llvm::HasValue(GetScalar(32, 0x07060504, false)));
+}
+
+TEST_F(DWARFExpressionMockProcessTest, DW_OP_deref_size) {
+  using ::testing::_;
+  using ::testing::ByMove;
+  using ::testing::Return;
+
+  // Set up a mock process.
+  ASSERT_TRUE(CreateMockObjects());
+
+  const uint32_t kRegValue = 0x88442200;
+  EXPECT_CALL(*m_process_sp, MemoryContents(kRegValue))
+      .WillOnce(Return(ByMove(std::vector<uint8_t>{0x11, 0x22, 0x33, 0x44})));
+
+  lldb::RegisterContextSP reg_ctx_sp = std::make_shared<MockRegisterContext>(
+      *m_thread_sp, RegisterValue(kRegValue));
+
+  ExecutionContext exe_ctx(*m_process_sp);
+  EXPECT_THAT_EXPECTED(Evaluate({DW_OP_regx, 0x1, DW_OP_deref_size, 0x2}, {},
+                                {}, &exe_ctx, reg_ctx_sp.get()),
+                       llvm::HasValue(GetScalar(32, 0x00002211, false)));
 }
 
 TEST_F(DWARFExpressionMockProcessTest, WASM_DW_OP_addr) {
