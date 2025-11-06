@@ -314,7 +314,7 @@ public:
     savecore = (1u << 7),
     siginfo_read = (1u << 8),
     gpu_plugins = (1u << 9),
-    gpu_dyld = (1u << 10),
+    lldb_settings = (1u << 10),
     address_spaces = (1u << 11),
     LLVM_MARK_AS_BITMASK_ENUM(address_spaces)
   };

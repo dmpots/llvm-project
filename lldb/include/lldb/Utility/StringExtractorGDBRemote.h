@@ -189,6 +189,9 @@ public:
     eServerPacketType_jGPUPluginBreakpointHit,
     eServerPacketType_jGPUPluginGetDynamicLoaderLibraryInfo,
 
+    // LLDB extension packets
+    eServerPacketType_jLLDBSettings,
+
     eServerPacketType_qMemRead, // Read memory with address space.
 
   };

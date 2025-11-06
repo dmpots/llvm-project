@@ -247,7 +247,7 @@ ProcessMockGPU::Manager::Attach(
 
 ProcessMockGPU::Extension
 ProcessMockGPU::Manager::GetSupportedExtensions() const {
-  return Extension::gpu_dyld | Extension::address_spaces;
+  return Extension::lldb_settings | Extension::address_spaces;
 }
 
 void ProcessMockGPU::HandleNativeProcessExit(const WaitStatus &exit_status) {

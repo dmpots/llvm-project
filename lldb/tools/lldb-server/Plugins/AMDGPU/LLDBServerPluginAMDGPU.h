@@ -62,6 +62,8 @@ public:
   llvm::Expected<GPUPluginBreakpointHitResponse>
   BreakpointWasHit(GPUPluginBreakpointHitArgs &args) override;
 
+  std::optional<LLDBSettings> GetLLDBSettings() override;
+
   NativeProcessProtocol *GetNativeProcess() {
     return m_native_process.GetCurrentProcess();
   }
@@ -114,6 +116,7 @@ private:
   bool ReadyToAttachDebugLibrary();
   bool ReadyToSendConnectionRequest();
   bool ReadyToSetGpuLoaderBreakpointByAddress();
+  ProcessAMDGPU *GetGPUProcess() const;
 
   Status m_main_loop_status;
   MainLoopBase::ReadHandleUP m_gpu_event_read_up;

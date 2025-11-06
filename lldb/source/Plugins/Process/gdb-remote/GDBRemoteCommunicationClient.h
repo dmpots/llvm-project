@@ -438,6 +438,8 @@ public:
 
   std::optional<std::vector<GPUActions>> GetGPUInitializeActions();
 
+  std::optional<LLDBSettings> GetLLDBSettings();
+
   std::optional<GPUPluginBreakpointHitResponse> 
   GPUBreakpointHit(const GPUPluginBreakpointHitArgs &args);
 
@@ -553,10 +555,6 @@ public:
   // allow another GDB remote connection to be started. This is used for GPU
   // debugging on a local machine.
   void SetFilePassingFD(int fd);
-
-  bool SupportsGPUDynamicLoader() const {
-    return m_supports_gdb_remote_gpu_dyld == eLazyBoolYes;
-  }
   
 protected:
   LazyBool m_supports_not_sending_acks = eLazyBoolCalculate;
@@ -598,12 +596,12 @@ protected:
   LazyBool m_supports_multiprocess = eLazyBoolCalculate;
   LazyBool m_supports_memory_tagging = eLazyBoolCalculate;
   LazyBool m_supports_qSaveCore = eLazyBoolCalculate;
-  LazyBool m_supports_gdb_remote_gpu_dyld = eLazyBoolCalculate;
   LazyBool m_uses_native_signals = eLazyBoolCalculate;
   std::optional<xPacketState> m_x_packet_state;
   LazyBool m_supports_reverse_continue = eLazyBoolCalculate;
   LazyBool m_supports_reverse_step = eLazyBoolCalculate;
   LazyBool m_supports_gpu_plugins = eLazyBoolCalculate;
+  LazyBool m_supports_lldb_settings = eLazyBoolCalculate;
   bool m_supports_qProcessInfoPID : 1, m_supports_qfProcessInfo : 1,
       m_supports_qUserName : 1, m_supports_qGroupName : 1,
       m_supports_qThreadStopInfo : 1, m_supports_z0 : 1, m_supports_z1 : 1,
@@ -639,6 +637,7 @@ protected:
   std::vector<lldb::addr_t> m_binary_addresses;
   llvm::VersionTuple m_os_version;
   llvm::VersionTuple m_maccatalyst_version;
+  std::optional<LLDBSettings> m_lldb_settings;
   std::string m_os_build;
   std::string m_os_kernel;
   std::string m_hostname;

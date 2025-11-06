@@ -268,6 +268,9 @@ void GDBRemoteCommunicationServerLLGS::RegisterPacketHandlers() {
       StringExtractorGDBRemote::eServerPacketType_jGPUPluginInitialize,
       &GDBRemoteCommunicationServerLLGS::Handle_jGPUPluginInitialize);
   RegisterMemberFunctionHandler(
+      StringExtractorGDBRemote::eServerPacketType_jLLDBSettings,
+      &GDBRemoteCommunicationServerLLGS::Handle_jLLDBSettings);
+  RegisterMemberFunctionHandler(
       StringExtractorGDBRemote::eServerPacketType_jGPUPluginBreakpointHit,
       &GDBRemoteCommunicationServerLLGS::Handle_jGPUPluginBreakpointHit);
   RegisterMemberFunctionHandler(
@@ -3776,6 +3779,24 @@ GDBRemoteCommunicationServerLLGS::Handle_jGPUPluginInitialize(
 }
 
 GDBRemoteCommunication::PacketResult
+GDBRemoteCommunicationServerLLGS::Handle_jLLDBSettings(
+    StringExtractorGDBRemote &) {
+  if (m_plugin_instance == nullptr)
+    return SendErrorResponse(
+        Status::FromErrorString("invalid LLDBServerPlugin"));
+
+  std::optional<LLDBSettings> process_settings =
+      m_plugin_instance->GetLLDBSettings();
+  if (process_settings) {
+    StreamGDBRemote response;
+    response.PutAsJSON(*process_settings, false);
+    return SendPacketNoLock(response.GetString());
+  }
+  return SendErrorResponse(
+      Status::FromErrorString("jLLDBSettings is not supported"));
+}
+
+GDBRemoteCommunication::PacketResult
 GDBRemoteCommunicationServerLLGS::Handle_jGPUPluginBreakpointHit(
     StringExtractorGDBRemote &packet) {
 
@@ -3811,16 +3832,44 @@ GDBRemoteCommunicationServerLLGS::Handle_jGPUPluginGetDynamicLoaderLibraryInfo(
   if (!args)
     return SendErrorResponse(args.takeError());
 
-  if (!m_current_process)
-    return SendErrorResponse(Status::FromErrorString("invalid process"));
-  std::optional<GPUDynamicLoaderResponse> libraries_response =
-      m_current_process->GetGPUDynamicLoaderLibraryInfos(*args);
-  if (!libraries_response)
+  if (!m_plugins.empty()) {
+    if (args->plugin_name.empty())
+      return SendErrorResponse(Status::FromErrorString(
+          "jGPUPluginGetDynamicLoaderLibraryInfo arguments are missing the "
+          "GPU plug-in name"));
+
+    // This was sent to the CPU GDB remote connection. Match the GPU plug-in
+    // name to find the right plug-in and get the libraries from the GPU plug-in
+    // instance.
+    for (auto &plugin_up : m_plugins) {
+      if (plugin_up->GetPluginName() == args->plugin_name) {
+        std::optional<GPUDynamicLoaderResponse> libraries_response =
+            plugin_up->GetGPUDynamicLoaderLibraryInfos(*args);
+        if (libraries_response) {
+          StreamGDBRemote response;
+          response.PutAsJSON(*libraries_response, /*hex_ascii=*/false);
+          return SendPacketNoLock(response.GetString());
+        }
+        return SendErrorResponse(Status::FromErrorString(
+            "jGPUPluginGetDynamicLoaderLibraryInfo not supported (CPU)"));
+      }
+    }
     return SendErrorResponse(Status::FromErrorString(
-        "jGPUPluginGetDynamicLoaderLibraryInfo not supported"));
-  StreamGDBRemote response;
-  response.PutAsJSON(*libraries_response, /*hex_ascii=*/false);
-  return SendPacketNoLock(response.GetString());
+        "invalid GPU plug-in name."));
+  } else {
+    // This was sent to the GPU GDB remote connection, ask the GPU
+    // NativeProcessProtocol for the library information.
+    if (!m_current_process)
+      return SendErrorResponse(Status::FromErrorString("invalid process"));
+    std::optional<GPUDynamicLoaderResponse> libraries_response =
+        m_current_process->GetGPUDynamicLoaderLibraryInfos(*args);
+    if (!libraries_response)
+      return SendErrorResponse(Status::FromErrorString(
+          "jGPUPluginGetDynamicLoaderLibraryInfo not supported"));
+    StreamGDBRemote response;
+    response.PutAsJSON(*libraries_response, /*hex_ascii=*/false);
+    return SendPacketNoLock(response.GetString());
+  }
 }
 
 GDBRemoteCommunication::PacketResult
@@ -4485,7 +4534,8 @@ std::vector<std::string> GDBRemoteCommunicationServerLLGS::HandleFeatures(
   std::vector<std::string> ret =
       GDBRemoteCommunicationServerCommon::HandleFeatures(client_features);
   ret.insert(ret.end(), {"QThreadSuffixSupported+", "QListThreadsInStopReply+",
-                         "qXfer:features:read+", "QNonStop+"});
+                         "qXfer:features:read+", "QNonStop+", 
+                         "binary-upload-bare+"});
 
   // report server-only features
   using Extension = NativeProcessProtocol::Extension;
@@ -4504,8 +4554,8 @@ std::vector<std::string> GDBRemoteCommunicationServerLLGS::HandleFeatures(
     ret.push_back("qSaveCore+");
   if (bool(plugin_features & Extension::gpu_plugins))
     ret.push_back("gpu-plugins+");
-  if (bool(plugin_features & Extension::gpu_dyld))
-    ret.push_back("gpu-dyld+");
+  if (bool(plugin_features & Extension::lldb_settings))
+    ret.push_back("lldb-settings+");
   if (bool(plugin_features & Extension::address_spaces))
     ret.push_back("address-spaces+");
 

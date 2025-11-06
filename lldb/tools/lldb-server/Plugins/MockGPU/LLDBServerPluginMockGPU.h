@@ -70,6 +70,8 @@ class TCPSocket;
 
 namespace lldb_server {
 
+class ProcessMockGPU;
+
 class LLDBServerPluginMockGPU : public LLDBServerPlugin {
 public:
   LLDBServerPluginMockGPU(LLDBServerPlugin::GDBServer &native_process,
@@ -83,8 +85,12 @@ public:
   void NativeProcessDidExit(const WaitStatus &exit_status) override;
   llvm::Expected<GPUPluginBreakpointHitResponse>
   BreakpointWasHit(GPUPluginBreakpointHitArgs &args) override;
+  
+  std::optional<GPUDynamicLoaderResponse> 
+  GetGPUDynamicLoaderLibraryInfos(const GPUDynamicLoaderArgs &args) override;
 
 private:
+  ProcessMockGPU *GetGPUProcess() const;
   std::optional<GPUPluginConnectionInfo> CreateConnection();
   void CloseFDs();
 

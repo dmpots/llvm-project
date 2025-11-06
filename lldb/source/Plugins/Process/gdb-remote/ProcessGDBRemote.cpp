@@ -1083,6 +1083,13 @@ Status ProcessGDBRemote::HandleConnectionRequest(const GPUActions &gpu_action) {
   if (!gpu_target_sp)
     return Status::FromErrorString("failed to create target");
 
+  // Associate the GPU target with with this target. We need to do this before
+  // we connect in case the DynamicLoaderGDBRemoteGPU needs to call through the
+  // native CPU GDB connection to fetch the initial shared libraries as the
+  // GPU plug-in might request that the library load/unload requests get handled
+  // via the CPU connnection.
+  GetTarget().SetGPUPluginTarget(gpu_action.plugin_name, gpu_target_sp);
+
   if (connection_info.copy_cpu_breakpoints_during_attaching)
     CopyCPUBreakpointsToGPUTarget(gpu_target_sp,
                                   GetTarget().shared_from_this());
@@ -1091,7 +1098,7 @@ Status ProcessGDBRemote::HandleConnectionRequest(const GPUActions &gpu_action) {
   if (!platform_sp)
     return Status::FromErrorString("invalid platform for target needed for "
                                    "connecting to process");
-
+                                   
   ProcessSP process_sp =
       gpu_action.connect_info->synchronous
           ? platform_sp->ConnectProcessSynchronous(
@@ -1104,9 +1111,6 @@ Status ProcessGDBRemote::HandleConnectionRequest(const GPUActions &gpu_action) {
     return error;
   if (!process_sp)
     return Status::FromErrorString("invalid process after connecting");
-
-  GetTarget().SetGPUPluginTarget(gpu_action.plugin_name,
-                                 process_sp->GetTarget().shared_from_this());
   LLDB_LOG(log, "ProcessGDBRemote::HandleConnectionRequest(): successfully "
                 "created process!!!");
   return Status();
@@ -4358,10 +4362,15 @@ bool ProcessGDBRemote::StopNoticingNewThreads() {
 
 DynamicLoader *ProcessGDBRemote::GetDynamicLoader() {
   if (m_dyld_up.get() == nullptr) {
-    llvm::StringRef dyld_plugin_name;
-    if (m_gdb_comm.SupportsGPUDynamicLoader())
-      dyld_plugin_name = DynamicLoaderGDBRemoteGPU::GetPluginNameStatic();
-    m_dyld_up.reset(DynamicLoader::FindPlugin(this, dyld_plugin_name));
+    // Check if the GDB remote connection specified an LLDB dynamic loader
+    // plug-in name. If not, we will auto select the right plug-in based off of
+    // the target triple of the process.
+    llvm::StringRef dyld_name;
+    std::optional<LLDBSettings> lldb_process_settings =
+        m_gdb_comm.GetLLDBSettings();
+    if (lldb_process_settings.has_value())
+      dyld_name = lldb_process_settings->dyld_plugin_name;
+    m_dyld_up.reset(DynamicLoader::FindPlugin(this, dyld_name));
   }
   return m_dyld_up.get();
 }

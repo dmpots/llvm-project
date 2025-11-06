@@ -61,7 +61,8 @@ llvm::raw_ostream &process_gdb_remote::operator<<(llvm::raw_ostream &os,
 
 // GDBRemoteCommunicationClient constructor
 GDBRemoteCommunicationClient::GDBRemoteCommunicationClient()
-    : GDBRemoteClientBase("gdb-remote.client"),
+    : GDBRemoteClientBase(
+          llvm::formatv("gdb-remote.client {0:x}'", this).str().c_str()),
 
       m_supports_qProcessInfoPID(true), m_supports_qfProcessInfo(true),
       m_supports_qUserName(true), m_supports_qGroupName(true),
@@ -312,6 +313,9 @@ void GDBRemoteCommunicationClient::ResetDiscoverableSettings(bool did_exec) {
     m_x_packet_state.reset();
     m_supports_reverse_continue = eLazyBoolCalculate;
     m_supports_reverse_step = eLazyBoolCalculate;
+    m_supports_gpu_plugins = eLazyBoolCalculate;
+    m_supports_lldb_settings = eLazyBoolCalculate;
+    m_supports_address_spaces = false;
     m_supports_qProcessInfoPID = true;
     m_supports_qfProcessInfo = true;
     m_supports_qUserName = true;
@@ -369,6 +373,8 @@ void GDBRemoteCommunicationClient::GetRemoteQSupported() {
   m_supports_reverse_continue = eLazyBoolNo;
   m_supports_reverse_step = eLazyBoolNo;
   m_supports_gpu_plugins = eLazyBoolNo;
+  m_supports_lldb_settings = eLazyBoolNo;
+  m_supports_address_spaces = false;
   m_max_packet_size = UINT64_MAX; // It's supposed to always be there, but if
                                   // not, we assume no limit
 
@@ -423,10 +429,12 @@ void GDBRemoteCommunicationClient::GetRemoteQSupported() {
         m_uses_native_signals = eLazyBoolYes;
       else if (x == "binary-upload+")
         m_x_packet_state = xPacketState::Prefixed;
+      else if (x == "binary-upload-bare+")
+        m_x_packet_state = xPacketState::Bare;
       else if (x == "gpu-plugins+")
         m_supports_gpu_plugins = eLazyBoolYes;
-      else if (x == "gpu-dyld+")
-        m_supports_gdb_remote_gpu_dyld = eLazyBoolYes;
+      else if (x == "lldb-settings+")
+        m_supports_lldb_settings = eLazyBoolYes;
       else if (x == "address-spaces+")
         m_supports_address_spaces = true;
       else if (x == "ReverseContinue+")
@@ -648,6 +656,41 @@ GDBRemoteCommunicationClient::GetGPUInitializeActions() {
   }
 
   return std::nullopt;
+}
+
+std::optional<LLDBSettings>
+GDBRemoteCommunicationClient::GetLLDBSettings() {
+  // Get JSON information containing GPU process settings required by a GDB
+  // remote connection by sending a packet to retrieve the settings.
+  if (m_supports_lldb_settings == eLazyBoolYes && 
+      !m_lldb_settings.has_value()) {
+    StringExtractorGDBRemote response;
+    response.SetResponseValidatorToJSON();
+    if (SendPacketAndWaitForResponse("jLLDBSettings", response) ==
+        PacketResult::Success) {
+      if (response.IsUnsupportedResponse()) {
+        m_supports_gpu_plugins = eLazyBoolNo;
+        return std::nullopt;
+      }
+      if (response.IsErrorResponse()) {
+        Debugger::ReportError(response.GetStatus().AsCString());
+        return std::nullopt;
+      }
+      if (llvm::Expected<LLDBSettings> info =
+              llvm::json::parse<LLDBSettings>(response.Peek(), 
+                                              "LLDBSettings")) {
+        m_lldb_settings = *info;
+      } else {
+        // We don't show JSON parsing errors to the user because they won't
+        // make sense to them.
+        llvm::consumeError(info.takeError());
+        Debugger::ReportError(
+            llvm::formatv("malformed jLLDBSettings response packet. {0}",
+                          response.GetStringRef()));
+      }
+    }
+  }
+  return m_lldb_settings;
 }
 
 std::optional<GPUPluginBreakpointHitResponse>
