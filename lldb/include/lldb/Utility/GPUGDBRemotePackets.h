@@ -286,17 +286,22 @@ struct GPUDynamicLoaderLibraryInfo {
   /// Set to true if this shared library is being loaded, false if the library
   /// is being unloaded.
   bool load;
-  /// The address where the object file is loaded. If this member has a value
-  /// the object file is loaded at an address and all sections should be slid to
-  /// match this base address. If this member doesn't have a value, then
-  /// individual section's load address must be specified individually if
-  /// \a loaded_sections has a value. If this doesn't have a value and the
-  /// \a loaded_Section doesn't have a value, this library will be unloaded.
+  /// The address where the object file is loaded. This value only be checked
+  /// if \a load is true and will be ignored if \a load is false. If this member
+  /// has a value the object file is loaded at an address and all sections
+  /// should be slid to match this base address. If this member doesn't have a
+  /// value, then section load addresses can be specified in \a loaded_sections.
+  /// If this doesn't have a value and the \a loaded_Section is empty, then this
+  /// library will be loaded at the file addresses found in the object file by
+  /// setting the load address of each top level section with the file address
+  /// which essentially says to load the file exactly where the virtual
+  /// addresses in file are assigned.
   std::optional<lldb::addr_t> load_address;
 
   /// If the object file specified by this structure has sections that get
-  /// loaded at different times then this will not be empty. If it is empty
-  /// the \a load_address must be specified if \a load is true.
+  /// loaded at different times then this will not be empty. This value only be
+  /// checked if \a load is true and will be ignored if \a load is false. If
+  /// this value is empty, see the documentation on \a load_address for details.
   std::vector<GPUSectionInfo> loaded_sections;
 
   /// If this library is only available as an in memory image of an object file

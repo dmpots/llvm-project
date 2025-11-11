@@ -101,7 +101,7 @@ bool DynamicLoaderGDBRemoteGPU::LoadModulesFromGDBServer(bool full) {
   for (const GPUDynamicLoaderLibraryInfo &info : response->library_infos) {
     std::shared_ptr<DataBufferHeap> data_sp;
     // Read the object file from memory if requested.
-    if (info.native_memory_address && info.native_memory_size) {
+    if (info.load && info.native_memory_address && info.native_memory_size) {
       LLDB_LOG(log, "Reading \"{0}\" from memory at {1:x}", info.pathname,
                *info.native_memory_address);
       if (cpu_target_sp) {
@@ -136,6 +136,18 @@ bool DynamicLoaderGDBRemoteGPU::LoadModulesFromGDBServer(bool full) {
       module_spec.SetObjectOffset(*info.file_offset);
     if (info.file_size)
       module_spec.SetObjectSize(*info.file_size);
+
+    // Unload shared libraries
+    if (!info.load) {
+      ModuleList matching_module_list;
+      target.GetImages().FindModules(module_spec, matching_module_list);
+      matching_module_list.ForEach([this](const ModuleSP &module_sp) -> IterationAction {
+        UnloadSections(module_sp);
+        return IterationAction::Continue; // Keep iterating
+      });
+      continue;
+    }
+
     // Get or create the module from the module spec.
     ModuleSP module_sp = target.GetOrCreateModule(module_spec,
                                                   /*notify=*/true);
@@ -180,6 +192,10 @@ bool DynamicLoaderGDBRemoteGPU::LoadModulesFromGDBServer(bool full) {
                      section_sp->GetName());
           }
         }
+      } else {
+        // Neither info.load_address nor info.loaded_sections were set. Load
+        // this binary at the file addresses with no offset.
+        module_sp->SetLoadAddress(target, 0, true /*value_is_offset*/, changed);
       }
       if (changed) {
         LLDB_LOG(log, "Module \"{0}\" was loaded, notifying target",
