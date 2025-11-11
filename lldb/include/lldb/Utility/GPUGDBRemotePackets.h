@@ -285,7 +285,7 @@ struct GPUDynamicLoaderLibraryInfo {
   std::optional<std::string> uuid_str;
   /// Set to true if this shared library is being loaded, false if the library
   /// is being unloaded.
-  bool load;
+  bool load = true;
   /// The address where the object file is loaded. This value only be checked
   /// if \a load is true and will be ignored if \a load is false. If this member
   /// has a value the object file is loaded at an address and all sections
