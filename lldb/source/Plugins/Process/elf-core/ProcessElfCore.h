@@ -98,7 +98,7 @@ public:
 
   bool GetProcessInfo(lldb_private::ProcessInstanceInfo &info) override;
 
-  std::optional<lldb_private::CoreNote> GetAmdGpuNote();
+  std::vector<lldb_private::CoreNote> GetCoreNotes();
 
 protected:
   void Clear();
