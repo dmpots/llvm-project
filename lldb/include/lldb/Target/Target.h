@@ -1458,6 +1458,7 @@ public:
       ScriptBased,
       CodeBased,
     };
+
     enum class StopHookResult : uint32_t {
       KeepStopped = 0,
       RequestContinue,
