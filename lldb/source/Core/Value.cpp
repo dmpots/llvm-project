@@ -65,6 +65,7 @@ Value::Value(const Value &v)
 
     m_value = (uintptr_t)m_data_buffer.GetBytes();
   }
+  m_address_space_id = v.m_address_space_id;
 }
 
 Value &Value::operator=(const Value &rhs) {
@@ -83,6 +84,7 @@ Value &Value::operator=(const Value &rhs) {
 
       m_value = (uintptr_t)m_data_buffer.GetBytes();
     }
+    m_address_space_id = rhs.m_address_space_id;
   }
   return *this;
 }
@@ -558,7 +560,7 @@ Status Value::GetValueAsData(ExecutionContext *exe_ctx, DataExtractor &data,
         Process *process = exe_ctx->GetProcessPtr();
 
         if (process) {
-          AddressSpec address_spec(address);
+          AddressSpec address_spec(address, m_address_space_id, exe_ctx->GetThreadSP());
           const size_t bytes_read =
               process->ReadMemory(address_spec, dst, byte_size, error);
           if (bytes_read != byte_size)

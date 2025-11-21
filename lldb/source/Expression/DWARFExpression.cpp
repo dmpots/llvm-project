@@ -955,6 +955,35 @@ static Scalar DerefSizeExtractDataHelper(uint8_t *addr_bytes,
     return addr_data.GetAddress(&addr_data_offset);
 }
 
+static llvm::Error Evaluate_DW_OP_LLVM_user(DWARFExpression::Stack &stack,
+                                            ExecutionContext *exe_ctx,
+                                            RegisterContext *reg_ctx,
+                                            const DataExtractor &opcodes,
+                                            lldb::offset_t &opcode_offset,
+                                            Log *log) {
+  uint64_t op = opcodes.GetULEB128(&opcode_offset);
+  switch (op) {
+  case DW_OP_LLVM_form_aspace_address: {
+    if (stack.size() < 2)
+      return llvm::createStringError("expression stack missing operands for "
+                                     "DW_OP_LLVM_form_aspace_address");
+
+    Value address_space = stack.back();
+    stack.pop_back();
+    if (address_space.GetValueType() != Value::ValueType::Scalar)
+      return llvm::createStringError("address space should be a scalar value");
+
+    stack.back().SetAddressSpaceId(address_space.GetScalar().ULongLong());
+    break;
+  }
+  default:
+    return llvm::createStringError("Unknown DW_OP_LLVM_user opcode: %" PRIu64,
+                                   op);
+  }
+
+  return llvm::Error::success();
+}
+
 llvm::Expected<Value> DWARFExpression::Evaluate(
     ExecutionContext *exe_ctx, RegisterContext *reg_ctx,
     lldb::ModuleSP module_sp, const DataExtractor &opcodes,
@@ -2331,6 +2360,14 @@ llvm::Expected<Value> DWARFExpression::Evaluate(
         return llvm::createStringError(
             "could not evaluate DW_OP_entry_value: %s",
             llvm::toString(std::move(err)).c_str());
+      break;
+    }
+
+    case DW_OP_LLVM_user: {
+      if (llvm::Error err = Evaluate_DW_OP_LLVM_user(stack, exe_ctx, reg_ctx,
+                                                     opcodes, offset, log))
+        return llvm::createStringError("could not evaluate DW_OP_LLVM_user: %s",
+                                       llvm::toString(std::move(err)).c_str());
       break;
     }
 
