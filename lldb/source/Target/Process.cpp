@@ -6912,9 +6912,11 @@ llvm::Expected<lldb::addr_t> AddressSpec::ResolveAddressInDefaultAddressSpace(
   // This object holds a weak pointer to a module. We need to make sure the
   // module hasn't been destroyed. 
   auto exp_module = GetModule();
-  if (!exp_module)
-    return exp_module.takeError();
-  ModuleSP module_sp = *exp_module;
+  ModuleSP module_sp;
+  if (exp_module)
+    module_sp = *exp_module;
+  else
+    llvm::consumeError(exp_module.takeError());
   if (module_sp) {
     // This object holds a weak pointer to a thread and we need to make sure
     // thread is still around.

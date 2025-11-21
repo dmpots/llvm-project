@@ -18,6 +18,7 @@
 #include "Plugins/SymbolFile/DWARF/SymbolFileWasm.h"
 #include "Plugins/SymbolVendor/wasm/SymbolVendorWasm.h"
 #include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
+#include "TestingSupport/Symbol/ClangTestUtils.h"
 #include "TestingSupport/Symbol/YAMLModuleTester.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/PluginManager.h"
@@ -143,7 +144,10 @@ struct MockProcess : Process {
 
   MockProcess(lldb::TargetSP target_sp, lldb::ListenerSP listener_sp,
               MockMemory memory)
-      : Process(target_sp, listener_sp), m_memory(std::move(memory)) {}
+      : Process(target_sp, listener_sp), m_memory(std::move(memory)) {
+    m_public_state.SetValue(lldb::eStateRunning);
+    m_private_state.SetValue(lldb::eStateRunning);
+  }
   size_t DoReadMemory(addr_t vm_addr, void *buf, size_t size,
                       Status &error) override {
     auto expected_memory = m_memory.ReadMemory(vm_addr, size);
@@ -231,6 +235,30 @@ public:
 private:
   RegisterInfo m_reg_info{};
   RegisterValue m_reg_value{};
+};
+
+/// Mock type system for testing.
+/// Provides an easy way to create CompilerType instances that can
+/// be use assigned to Value that is the result of a dwarf expression
+/// evaluation.
+struct MockTypeSystem {
+  MockTypeSystem() {
+    m_holder =
+        std::make_unique<clang_utils::TypeSystemClangHolder>("test ASTContext");
+    m_ast = m_holder->GetAST();
+  }
+
+  CompilerType GetBasicType(lldb::BasicType type) {
+    return m_ast->GetBasicType(type);
+  }
+
+  CompilerType GetInt(size_t num_bytes = 4) {
+    size_t bit_size = num_bytes * 8;
+    return m_ast->GetIntTypeFromBitSize(bit_size, /*is_signed=*/false);
+  }
+
+  std::unique_ptr<clang_utils::TypeSystemClangHolder> m_holder;
+  TypeSystemClang *m_ast = nullptr;
 };
 } // namespace
 
@@ -1321,4 +1349,46 @@ TEST_F(DWARFExpressionMockProcessTest, deref_implicit_value) {
 
   EXPECT_THAT_EXPECTED(Eval({DW_OP_lit4, DW_OP_deref_size, 1}),
                        ExpectLoadAddress(0x01));
+}
+
+// Get the value as data using the expected size in bytes.
+static std::vector<uint8_t> GetValueAsData(Value value,
+                                           ExecutionContext *exe_ctx,
+                                           size_t data_size_in_bytes) {
+  // Create a compiler type with the correct size.
+  MockTypeSystem type_system;
+  value.SetCompilerType(type_system.GetInt(data_size_in_bytes));
+
+  DataExtractor data;
+  Status status = value.GetValueAsData(exe_ctx, data, nullptr);
+  EXPECT_TRUE(status.Success());
+  EXPECT_THAT_ERROR(status.takeError(), llvm::Succeeded());
+
+  return data.GetData();
+}
+
+// This test verifies that we can actually load the resulting LoadAddress value
+// using the Value::GetValueAsData api and have it work with all of our mock
+// classes. It exercises the logic in the Value class for actually loading
+// values.
+TEST_F(DWARFExpressionMockProcessTest, get_value_as_data) {
+  TestContext test_ctx;
+  MockMemory::Map memory = {
+      {{0x8, 4}, {0xa, 0xb, 0xc, 0xd}},
+  };
+  ASSERT_TRUE(CreateTestContext(&test_ctx, "i386-pc-linux", {}, memory));
+  ExecutionContext exe_ctx(test_ctx.process_sp);
+  MockDwarfDelegate dwarf5 = MockDwarfDelegate::Dwarf5();
+
+  auto Eval = [&](llvm::ArrayRef<uint8_t> expr_data) {
+    return Evaluate(expr_data, {}, &dwarf5, &exe_ctx);
+  };
+
+  // Evaluate the dwarf expression to a load address.
+  llvm::Expected<Value> value = Eval({DW_OP_lit8});
+  ASSERT_THAT_EXPECTED(value, ExpectLoadAddress(8));
+
+  // The value data should be the bytes at the load address.
+  EXPECT_THAT(GetValueAsData(*value, &exe_ctx, 4),
+              testing::ContainerEq(memory[{8, 4}]));
 }
