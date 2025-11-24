@@ -102,20 +102,6 @@ class AddressSpaceAmdGpuTestCase(AmdGpuTestCaseBase):
         self.assertNotEqual(None, gpu_threads, "GPU should be stopped at breakpoint")
         return gpu_threads
 
-    def test_global(self):
-        """Test reading from the global address space."""
-        # Read from global address space using the address stored in the host_output pointer.
-        # The host_output variable is a pointer to global memory.
-        # We expect the element at index 1 to be 0 since the host_output buffer
-        # has not been updated at the point where we hit the gpu breakpoint.
-        location = Location(
-            "host_output",
-            expected_value=0,
-            size_in_bytes=4,
-            address=4,  # Offset address by 4 bytes to get index 1.
-        )
-        self.validate_read_address_from_global_variable("global", location)
-
     def test_generic(self):
         """Test reading from the generic address space."""
         # Read from generic address space using the address stored in the device_output pointer.

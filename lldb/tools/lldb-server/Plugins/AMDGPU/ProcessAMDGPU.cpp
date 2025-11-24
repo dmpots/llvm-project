@@ -90,19 +90,17 @@ Status ProcessAMDGPU::WriteMemory(lldb::addr_t addr, const void *buf,
 std::vector<AddressSpaceInfo> ProcessAMDGPU::GetAddressSpaces() {
   std::vector<AddressSpaceInfo> address_spaces;
 
-  address_spaces.push_back({"global", AddressSpace::DW_ASPACE_LLVM_none,
-                            /*is_thread_specific=*/false});
-  address_spaces.push_back({"generic", AddressSpace::DW_ASPACE_AMDGPU_generic,
+  address_spaces.push_back({"generic", (uint64_t)DW_ASPACE_AMDGPU::generic,
                             /*is_thread_specific=*/true});
-  address_spaces.push_back({"region", AddressSpace::DW_ASPACE_AMDGPU_region,
+  address_spaces.push_back({"region", (uint64_t)DW_ASPACE_AMDGPU::region,
                             /*is_thread_specific=*/false});
-  address_spaces.push_back({"local", AddressSpace::DW_ASPACE_AMDGPU_local,
+  address_spaces.push_back({"local", (uint64_t)DW_ASPACE_AMDGPU::local,
                             /*is_thread_specific=*/true});
   address_spaces.push_back({"private_lane",
-                            AddressSpace::DW_ASPACE_AMDGPU_private_lane,
+                            (uint64_t)DW_ASPACE_AMDGPU::private_lane,
                             /*is_thread_specific=*/true});
   address_spaces.push_back({"private_wave",
-                            AddressSpace::DW_ASPACE_AMDGPU_private_wave,
+                            (uint64_t)DW_ASPACE_AMDGPU::private_wave,
                             /*is_thread_specific=*/true});
 
   return address_spaces;
