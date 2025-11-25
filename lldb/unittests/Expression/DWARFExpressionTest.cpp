@@ -1438,3 +1438,19 @@ TEST_F(DWARFExpressionMockProcessTest, DW_OP_LLVM_form_aspace_address) {
   EXPECT_THAT(GetValueAsData(*value, &exe_ctx, 4),
               testing::ContainerEq(memory[{8, 4, 5}]));
 }
+
+TEST_F(DWARFExpressionMockProcessTest, DW_OP_LLVM_offset) {
+  TestContext test_ctx;
+  ASSERT_TRUE(CreateTestContext(&test_ctx, "i386-pc-linux"));
+  ExecutionContext exe_ctx(test_ctx.process_sp);
+  MockDwarfDelegate dwarf5 = MockDwarfDelegate::Dwarf5();
+
+  auto Eval = [&](llvm::ArrayRef<uint8_t> expr_data) {
+    return Evaluate(expr_data, {}, &dwarf5, &exe_ctx);
+  };
+
+  // Create a load address that is 5 bytes from the base address 8.
+  llvm::Expected<Value> value =
+      Eval({DW_OP_lit8, DW_OP_lit5, DW_OP_LLVM_user, DW_OP_LLVM_offset});
+  ASSERT_THAT_EXPECTED(value, ExpectLoadAddress(13));
+}

@@ -976,6 +976,20 @@ static llvm::Error Evaluate_DW_OP_LLVM_user(DWARFExpression::Stack &stack,
     stack.back().SetAddressSpaceId(address_space.GetScalar().ULongLong());
     break;
   }
+  case DW_OP_LLVM_offset: {
+    if (stack.size() < 2)
+      return llvm::createStringError("expression stack missing operands for "
+                                     "DW_OP_LLVM_offset");
+    Value byte_offset = stack.back();
+    stack.pop_back();
+
+    if (byte_offset.GetValueType() != Value::ValueType::Scalar)
+      return llvm::createStringError("offset should be a scalar value");
+
+    // Add the byte offset to the current value.
+    stack.back().GetScalar() += byte_offset.GetScalar();
+    break;
+  }
   default:
     return llvm::createStringError("Unknown DW_OP_LLVM_user opcode: %" PRIu64,
                                    op);
