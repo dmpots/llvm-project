@@ -1135,7 +1135,7 @@ void ProcessGDBRemote::HandleGPUBreakpoints(const GPUActions &gpu_action) {
       bp_sp = target.CreateBreakpoint(
           &bp_modules,                         // Containing modules.
           nullptr,                             // Containing source files.
-          bp.name_info->function_name.c_str(), // Function name.
+          {bp.name_info->function_name.c_str()}, // Function name.
           eFunctionNameTypeFull,               // Function name type.
           eLanguageTypeUnknown,                // Language type
           0,                                   // Byte offset.
