@@ -103,12 +103,6 @@ public:
       std::function<std::string (GDBRemoteCommunicationServerLLGS &server,
                                  NativeProcessProtocol *process)>;
 
-  bool SetProcessStoppedCallback(ProcessStoppedChangedCallback callback) {
-    if (m_process_stopped_callback)
-      return false;
-    m_process_stopped_callback = callback;
-    return true;
-  }
   void InstallPlugin(std::unique_ptr<lldb_server::LLDBServerPlugin> plugin_up);
 
   void SetPlugin(lldb_server::LLDBServerPlugin *plugin) {

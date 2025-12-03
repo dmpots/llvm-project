@@ -1139,6 +1139,7 @@ void ProcessGDBRemote::HandleGPUBreakpoints(const GPUActions &gpu_action) {
           eFunctionNameTypeFull,               // Function name type.
           eLanguageTypeUnknown,                // Language type
           0,                                   // Byte offset.
+          false,                               // Offset is instruction count.
           eLazyBoolNo,                         // Skip prologue.
           true,                                // Internal breakpoint.
           false);                              // Request hardware.
