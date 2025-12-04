@@ -107,11 +107,13 @@ endif
 # Override CC and CXX when building a hip application.
 #
 # Use the same hipcc compiler for compiling and linking everything.
+# Make sure to link to the system standard library since hipcc needs it.
 #----------------------------------------------------------------------
 ifneq "$(strip $(HIP_SOURCES))" ""
 	override CC := $(HIPCC)
 	override CXX := $(HIPCC)
 	override CC_TYPE := hip
+	override USE_SYSTEM_STDLIB := 1
 endif
 
 #----------------------------------------------------------------------
