@@ -6934,16 +6934,24 @@ void Process::SetAddressableBitMasks(AddressableBits bit_masks) {
   }
 }
 
-
+// Check if a weak_ptr was never initialized.
+// This is useful to distinguish between a weak_ptr that was never initialized
+// and a weak_ptr that was initialized and then expired.
+// https://stackoverflow.com/questions/45507041/how-to-check-if-weak-ptr-is-empty-non-assigned
+template <typename T>
+static bool weak_ptr_is_uninitialized(std::weak_ptr<T> const &weak) {
+  using wt = std::weak_ptr<T>;
+  return !weak.owner_before(wt{}) && !wt{}.owner_before(weak);
+}
 
 llvm::Expected<lldb::ModuleSP> AddressSpec::GetModule() const {
-  if (m_module_wp.expired())
+  if (m_module_wp.expired() && !weak_ptr_is_uninitialized(m_module_wp))
     return llvm::createStringError("module has expired");
   return m_module_wp.lock();
 }
 
 llvm::Expected<lldb::ThreadSP> AddressSpec::GetThread() const {
-  if (m_thread_wp.expired())
+  if (m_thread_wp.expired() && !weak_ptr_is_uninitialized(m_thread_wp))
     return llvm::createStringError("module has expired");
   return m_thread_wp.lock();
 }
@@ -6965,11 +6973,9 @@ llvm::Expected<lldb::addr_t> AddressSpec::ResolveAddressInDefaultAddressSpace(
   // This object holds a weak pointer to a module. We need to make sure the
   // module hasn't been destroyed. 
   auto exp_module = GetModule();
-  ModuleSP module_sp;
-  if (exp_module)
-    module_sp = *exp_module;
-  else
-    llvm::consumeError(exp_module.takeError());
+  if (!exp_module)
+    return exp_module.takeError();
+  ModuleSP module_sp = *exp_module;
   if (module_sp) {
     // This object holds a weak pointer to a thread and we need to make sure
     // thread is still around.
