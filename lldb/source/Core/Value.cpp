@@ -55,7 +55,8 @@ Value::Value(const void *bytes, int len)
 Value::Value(const Value &v)
     : m_value(v.m_value), m_compiler_type(v.m_compiler_type),
       m_context(v.m_context), m_value_type(v.m_value_type),
-      m_context_type(v.m_context_type), m_data_buffer() {
+      m_context_type(v.m_context_type), m_data_buffer(),
+      m_address_space_id(v.m_address_space_id) {
   const uintptr_t rhs_value =
       (uintptr_t)v.m_value.ULongLong(LLDB_INVALID_ADDRESS);
   if ((rhs_value != 0) &&
@@ -65,7 +66,6 @@ Value::Value(const Value &v)
 
     m_value = (uintptr_t)m_data_buffer.GetBytes();
   }
-  m_address_space_id = v.m_address_space_id;
 }
 
 Value &Value::operator=(const Value &rhs) {
