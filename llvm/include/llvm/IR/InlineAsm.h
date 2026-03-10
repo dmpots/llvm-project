@@ -459,8 +459,9 @@ public:
     if (ExtraInfo & InlineAsm::Extra_MayUnwind)
       Result.push_back("unwind");
 
-    AsmDialect Dialect =
-        InlineAsm::AsmDialect((ExtraInfo & InlineAsm::Extra_AsmDialect));
+    AsmDialect Dialect = (ExtraInfo & InlineAsm::Extra_AsmDialect)
+                             ? InlineAsm::AD_Intel
+                             : InlineAsm::AD_ATT;
 
     if (Dialect == InlineAsm::AD_ATT)
       Result.push_back("attdialect");
